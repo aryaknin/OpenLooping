@@ -1,0 +1,24 @@
+# Références propriétaires et outils d'analyse locaux
+/work/reference/
+/work/tools/
+
+# Résultats bruts d'analyse (hors dépôt clean room)
+/work/analysis-raw/
+
+# Construction
+/build/
+/_CPack_Packages/
+/dist/
+*.deb
+*.build
+*.buildinfo
+*.changes
+
+# Ressources visuelles tierces non redistribuables
+/LoopingImage.jpg
+
+# Environnements de développement
+/.vscode/
+/.idea/
+*~
+
