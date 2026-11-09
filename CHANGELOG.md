@@ -7,6 +7,9 @@ fabriquée pour remplir les trous.
 
 ## 0.6.1 — 9 novembre 2026
 
+- Unification complète de l'identité sous le nom OpenLooping : application,
+  fenêtre, exécutable, paquet Debian, entrée de bureau, type MIME et format
+  JSON ouvert.
 - Refonte du confort visuel du canevas MCD.
 - Compactage proportionnel des coordonnées importées.
 - Dimensionnement des entités selon leurs attributs, avec ellipse et infobulle

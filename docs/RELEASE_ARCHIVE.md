@@ -1,8 +1,9 @@
 # Registre des artefacts historiques
 
-Les paquets ci-dessous existent encore dans l'espace de travail local. Ils ne
-sont pas inclus dans Git afin d'éviter de gonfler l'historique. Ils peuvent être
-publiés comme pièces jointes de versions GitHub après vérification.
+Les anciens paquets sont conservés hors du projet dans l'archive locale
+`/home/ary/Documents/Codex/OpenLooping-Legacy-Artifacts`. Ils ne sont pas
+inclus dans Git afin d'éviter de gonfler l'historique. Seul le paquet courant
+est régénéré avec l'identité OpenLooping avant publication.
 
 | Version | Taille | SHA-256 | Sources historiques |
 |---|---:|---|---|
@@ -16,5 +17,5 @@ publiés comme pièces jointes de versions GitHub après vérification.
 | 0.5.0 | 215 126 | `c20b8df77535a0ba66ba097bff31561066fc78619b4d07419646bda963a797ad` | indisponibles |
 | 0.5.1 | 225 772 | `825bafd444ee7c857dac422aed03090f0cb1f7180f3044bb5877a400c77ec854` | indisponibles |
 | 0.6.0 | 3 651 668 | `7e710761e7f6545cf39e8c355444f3e0c5cc00f75c467fad080e794259a1e008` | état intermédiaire non conservé |
-| 0.6.1 | 3 693 820 | `c4ef762383d6ef1dbf7ae9f49eda7d034c8bbefe3bec44ed00ad3e4087945645` | disponibles dans ce dépôt |
+| 0.6.1 | 3 695 384 | `145a6cda000af6a2e4575fac0f7cbca69521a5d0312684b8801f6e6edce87c90` | disponibles dans ce dépôt |
 

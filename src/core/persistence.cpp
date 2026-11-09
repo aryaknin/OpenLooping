@@ -116,7 +116,10 @@ bool Persistence::load(Model &model, const QString &path, QString *error, QStrin
         return false;
     }
     const auto root = document.object();
-    if (root["format"].toString() != "openlooping") {
+    const bool isOpenLooping = root["format"].toString() == QStringLiteral("openlooping");
+    const bool isLegacyOpenDocument = root["version"].toInt() == 1
+        && root.contains("entities") && root.contains("associations") && root.contains("links");
+    if (!isOpenLooping && !isLegacyOpenDocument) {
         if (error) *error = QStringLiteral("Format de fichier non reconnu");
         return false;
     }
