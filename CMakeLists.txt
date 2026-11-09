@@ -30,7 +30,7 @@ if(BUILD_TESTING)
     add_executable(looping_core_tests tests/core_tests.cpp)
     target_link_libraries(looping_core_tests PRIVATE looping_core Qt6::Test)
     target_compile_definitions(looping_core_tests PRIVATE
-        LOOPING_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/work/analysis-raw")
+        LOOPING_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
     add_test(NAME looping_core_tests COMMAND looping_core_tests)
 
     add_executable(looping_ui_tests tests/ui_tests.cpp src/ui/objectdialog.cpp)
