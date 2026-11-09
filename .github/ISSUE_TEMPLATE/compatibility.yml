@@ -1,0 +1,31 @@
+name: Compatibilité de fichier
+description: Signaler un problème d'ouverture `.loo`, `.lo1`…
+title: "[Compatibilité] "
+labels: [compatibility]
+body:
+  - type: input
+    id: source_version
+    attributes:
+      label: Version ayant créé le fichier
+      description: Indiquez-la seulement si elle est connue.
+  - type: dropdown
+    id: extension
+    attributes:
+      label: Extension
+      options: [.loo, .lo1, .lo2, .lo3, .lo4, .lo5, .lo6, .lo7, .lo8, .lo9]
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Écart observé
+      description: Précisez les objets, positions ou propriétés manquants.
+    validations:
+      required: true
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Partage du fichier
+      options:
+        - label: Le modèle de reproduction est minimal, anonymisé et partageable publiquement.
+          required: true

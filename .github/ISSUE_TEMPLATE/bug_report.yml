@@ -1,0 +1,45 @@
+name: Signaler un bug
+description: Décrire un comportement reproductible d'OpenLooping
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version d'OpenLooping
+      placeholder: "0.6.1"
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Distribution et environnement graphique
+      placeholder: "Ubuntu 24.04, Wayland, Qt 6.4"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Étapes de reproduction
+      description: Utilisez un modèle minimal et anonymisé.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Résultat attendu
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Résultat obtenu
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Données
+      options:
+        - label: Le fichier joint ne contient aucune donnée personnelle ni ressource propriétaire.
+          required: true
