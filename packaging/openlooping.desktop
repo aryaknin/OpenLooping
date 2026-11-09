@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=OpenLooping
+Comment=Éditeur de modèles conceptuels de données
+Exec=openlooping
+Terminal=false
+Categories=Development;Education;Database;
+MimeType=application/x-openlooping;
