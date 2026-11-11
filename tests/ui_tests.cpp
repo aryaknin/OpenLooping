@@ -5,10 +5,12 @@
 #include "core/persistence.h"
 
 #include <QCheckBox>
+#include <QFrame>
 #include <QGraphicsItem>
 #include <QGraphicsScene>
 #include <QTableWidget>
 #include <QTemporaryDir>
+#include <QToolButton>
 #include <QtTest>
 
 class UiTests : public QObject {
@@ -18,6 +20,7 @@ private slots:
     void linkToolAcceptsBothOrdersAndStaysActive();
     void linkToolShowsAndClearsConnectionPreview();
     void linksHaveComfortableHitAreaAndDisplayRole();
+    void modernToolbarExposesPrimaryActionsAndFits();
 };
 
 void UiTests::identifierChecksAndLocksNotNull()
@@ -183,6 +186,43 @@ void UiTests::linksHaveComfortableHitAreaAndDisplayRole()
                       view->mapFromScene(center + offset));
     QCoreApplication::processEvents();
     QVERIFY(linkItem->isSelected());
+}
+
+void UiTests::modernToolbarExposesPrimaryActionsAndFits()
+{
+    MainWindow window;
+    window.resize(900, 580);
+    window.show();
+    QCoreApplication::processEvents();
+
+    auto *topBar = window.findChild<QFrame *>(QStringLiteral("topBar"));
+    QVERIFY(topBar);
+    QVERIFY2(topBar->minimumSizeHint().width() <= 900,
+             "La barre d’outils doit rester utilisable à la largeur minimale de la fenêtre");
+
+    const QStringList primaryActions{QStringLiteral("Sélection"), QStringLiteral("Entité"),
+        QStringLiteral("Association"), QStringLiteral("Héritage"), QStringLiteral("Règle"),
+        QStringLiteral("Lien"), QStringLiteral("Ajuster"), QStringLiteral("MLD"), QStringLiteral("LDD")};
+    const auto buttons = topBar->findChildren<QToolButton *>();
+    for (const auto &action : primaryActions) {
+        bool found = false;
+        for (auto *button : buttons) found = found || button->text() == action;
+        QVERIFY2(found, qPrintable(QStringLiteral("Action absente de la barre : %1").arg(action)));
+    }
+
+    auto buttonNamed = [&buttons](const QString &name) -> QToolButton * {
+        for (auto *button : buttons) if (button->text() == name) return button;
+        return nullptr;
+    };
+    auto *view = window.findChild<DiagramView *>();
+    QVERIFY(view);
+    QTest::mouseClick(buttonNamed(QStringLiteral("Lien")), Qt::LeftButton);
+    QCOMPARE(view->viewport()->cursor().shape(), Qt::CrossCursor);
+    QTest::mouseClick(buttonNamed(QStringLiteral("Sélection")), Qt::LeftButton);
+    QCOMPARE(view->viewport()->cursor().shape(), Qt::ArrowCursor);
+
+    const QString screenshotPath = qEnvironmentVariable("OPENLOOPING_UI_SCREENSHOT");
+    if (!screenshotPath.isEmpty()) QVERIFY(window.grab().save(screenshotPath));
 }
 
 QTEST_MAIN(UiTests)

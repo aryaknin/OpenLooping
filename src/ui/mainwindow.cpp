@@ -34,12 +34,14 @@
 #include <QMdiArea>
 #include <QMdiSubWindow>
 #include <QPlainTextEdit>
+#include <QPainter>
 #include <QPushButton>
 #include <QPolygonF>
 #include <QPainterPath>
 #include <QPainterPathStroker>
 #include <QSlider>
 #include <QStatusBar>
+#include <QStyle>
 #include <QToolButton>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -146,29 +148,97 @@ QGraphicsDropShadowEffect *softShadow()
 
 MainWindow::MainWindow() { setupUi(); newModel(); }
 
-static QToolButton *ribbonButton(const QString &symbol, const QString &text, QWidget *parent)
+static QIcon domainIcon(const QString &kind, const QColor &color = QColor("#334155"))
+{
+    QPixmap pixmap(48, 48);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(QPen(color, 2.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.setBrush(QColor(255, 255, 255, 230));
+    if (kind == "new") {
+        painter.drawRoundedRect(QRectF(13, 7, 23, 34), 2, 2);
+        painter.drawLine(QPointF(19, 24), QPointF(30, 24));
+        painter.drawLine(QPointF(24.5, 18.5), QPointF(24.5, 29.5));
+    } else if (kind == "open") {
+        QPainterPath folder;
+        folder.moveTo(7, 17); folder.lineTo(7, 12); folder.lineTo(21, 12);
+        folder.lineTo(25, 17); folder.lineTo(41, 17); folder.lineTo(37, 38);
+        folder.lineTo(10, 38); folder.closeSubpath(); painter.drawPath(folder);
+        painter.drawLine(QPointF(10, 21), QPointF(38, 21));
+    } else if (kind == "save") {
+        painter.drawRoundedRect(QRectF(9, 8, 30, 32), 3, 3);
+        painter.drawRect(QRectF(15, 9, 17, 10));
+        painter.drawRoundedRect(QRectF(15, 27, 18, 13), 2, 2);
+    } else if (kind == "entity") {
+        painter.drawRoundedRect(QRectF(8, 9, 32, 30), 4, 4);
+        painter.drawLine(QPointF(8, 18), QPointF(40, 18));
+        painter.drawLine(QPointF(13, 24), QPointF(31, 24));
+        painter.drawLine(QPointF(13, 30), QPointF(35, 30));
+    } else if (kind == "association") {
+        painter.drawEllipse(QRectF(6, 12, 36, 24));
+        painter.drawLine(QPointF(15, 24), QPointF(33, 24));
+    } else if (kind == "inheritance") {
+        QPolygonF diamond; diamond << QPointF(24, 6) << QPointF(42, 24)
+                                  << QPointF(24, 42) << QPointF(6, 24);
+        painter.drawPolygon(diamond);
+        painter.drawLine(QPointF(18, 24), QPointF(30, 24));
+    } else if (kind == "rule") {
+        painter.setBrush(QColor("#fff7d6"));
+        painter.drawRoundedRect(QRectF(8, 8, 32, 32), 4, 4);
+        painter.drawLine(QPointF(13, 17), QPointF(34, 17));
+        painter.drawLine(QPointF(13, 24), QPointF(31, 24));
+        painter.drawLine(QPointF(13, 31), QPointF(27, 31));
+    } else if (kind == "link") {
+        painter.setBrush(color);
+        painter.drawEllipse(QPointF(10, 34), 3.5, 3.5);
+        painter.drawEllipse(QPointF(38, 14), 3.5, 3.5);
+        painter.drawLine(QPointF(13, 32), QPointF(35, 16));
+    } else if (kind == "selection") {
+        painter.setBrush(QColor(255, 255, 255, 210));
+        QPolygonF pointer; pointer << QPointF(13, 8) << QPointF(36, 28)
+                                  << QPointF(25, 29) << QPointF(20, 40);
+        painter.drawPolygon(pointer);
+    } else if (kind == "fit") {
+        painter.drawLine(QPointF(8, 19), QPointF(8, 8)); painter.drawLine(QPointF(8, 8), QPointF(19, 8));
+        painter.drawLine(QPointF(40, 19), QPointF(40, 8)); painter.drawLine(QPointF(40, 8), QPointF(29, 8));
+        painter.drawLine(QPointF(8, 29), QPointF(8, 40)); painter.drawLine(QPointF(8, 40), QPointF(19, 40));
+        painter.drawLine(QPointF(40, 29), QPointF(40, 40)); painter.drawLine(QPointF(40, 40), QPointF(29, 40));
+    } else if (kind == "panel") {
+        painter.drawRoundedRect(QRectF(7, 8, 34, 32), 3, 3);
+        painter.drawLine(QPointF(7, 17), QPointF(41, 17));
+        painter.drawLine(QPointF(28, 17), QPointF(28, 40));
+    }
+    return QIcon(pixmap);
+}
+
+static QToolButton *toolButton(const QIcon &icon, const QString &text, QWidget *parent,
+                               const QString &role = QStringLiteral("command"))
 {
     auto *button = new QToolButton(parent);
-    button->setText(symbol + "\n" + text);
-    button->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    button->setMinimumSize(54, 62);
-    button->setAutoRaise(true);
+    button->setIcon(icon);
+    button->setIconSize(QSize(25, 25));
+    button->setText(text);
+    button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    button->setProperty("toolRole", role);
+    button->setMinimumSize(62, 58);
+    button->setAutoRaise(false);
     button->setCursor(Qt::PointingHandCursor);
     return button;
 }
 
-static QFrame *ribbonGroup(const QString &title, QLayout *content, QWidget *parent)
+static QFrame *toolbarGroup(const QString &title, QLayout *content, QWidget *parent)
 {
     auto *frame = new QFrame(parent);
-    frame->setObjectName("ribbonGroup");
+    frame->setObjectName("toolbarGroup");
     auto *layout = new QVBoxLayout(frame);
-    layout->setContentsMargins(4, 3, 4, 0);
-    layout->setSpacing(0);
-    layout->addLayout(content, 1);
+    layout->setContentsMargins(8, 3, 8, 5);
+    layout->setSpacing(3);
     auto *label = new QLabel(title, frame);
-    label->setObjectName("ribbonGroupTitle");
-    label->setAlignment(Qt::AlignCenter);
+    label->setObjectName("toolbarGroupTitle");
+    label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     layout->addWidget(label);
+    layout->addLayout(content, 1);
     return frame;
 }
 
@@ -179,23 +249,38 @@ void MainWindow::setupUi()
     setWindowTitle("OpenLooping");
     setDockOptions(QMainWindow::AllowNestedDocks | QMainWindow::AllowTabbedDocks);
     setStyleSheet(R"(
-        QMainWindow { background: #dfe3e8; }
-        QWidget { font-family: "DejaVu Sans"; font-size: 10px; }
-        #ribbon { background: #fbfcfd; border-bottom: 1px solid #c9d0d7; }
-        #ribbonTab { background: white; border: 1px solid #c8d0d8; border-bottom: 0; border-radius: 5px 5px 0 0; padding: 5px 18px; }
-        #appButton { color: #1671c5; font-weight: bold; border: 1px solid #b7c3cf; border-radius: 14px; background: white; }
-        #appButton:hover { background: #edf6ff; border-color: #78aee0; }
-        #ribbonGroup { border-right: 1px solid #d6dce2; background: #fbfcfd; }
-        #ribbonGroupTitle { background: #eef2f5; color: #697681; border-top: 1px solid #e1e6ea; min-height: 16px; }
-        QToolButton { border: 1px solid transparent; border-radius: 5px; padding: 4px; }
-        QToolButton:hover { border: 1px solid #8db8df; background: #e8f3fd; }
-        QToolButton:checked { border: 1px solid #4c96d5; background: #d7ebfb; color: #174f7e; }
-        QPushButton { border: 1px solid #c4ccd3; border-radius: 4px; padding: 3px 7px; background: #ffffff; }
-        QPushButton:hover { border-color: #77aedd; background: #edf6fd; }
-        QMdiArea { background: #dce1e6; }
+        QMainWindow { background: #e7ebf0; }
+        QWidget { font-family: "DejaVu Sans"; font-size: 10px; color: #263445; }
+        #topBar { background: #ffffff; border-bottom: 1px solid #d8e0e8; }
+        #brandMark { background: #2563eb; color: white; border-radius: 9px; font-size: 13px; font-weight: 800; }
+        #brandName { color: #162033; font-size: 14px; font-weight: 700; }
+        #workspacePill { background: #eaf1ff; color: #1d4ed8; border: 1px solid #cbdcff; border-radius: 10px; padding: 3px 10px; font-weight: 700; }
+        #toolbarGroup { border-right: 1px solid #e6ebf0; background: transparent; }
+        #toolbarGroupTitle { color: #8491a3; font-size: 8px; font-weight: 700; }
+        QToolButton[toolRole="command"] { min-width: 54px; border: 1px solid transparent; border-radius: 8px; padding: 3px 5px; background: transparent; color: #344256; }
+        QToolButton[toolRole="command"]:hover { border-color: #d3e1f5; background: #f2f7ff; color: #174ea6; }
+        QToolButton[toolRole="command"]:pressed, QToolButton[toolRole="command"]:checked { border-color: #adc8f5; background: #e5efff; color: #174ea6; }
+        QToolButton[toolRole="primary"] { min-width: 60px; border: 1px solid #1d4ed8; border-radius: 8px; padding: 3px 7px; background: #2563eb; color: white; font-weight: 700; }
+        QToolButton[toolRole="primary"]:hover { background: #1d4ed8; }
+        QToolButton[toolRole="toggle"] { border: 1px solid #d8e0e8; border-radius: 7px; padding: 4px 9px; background: #f8fafc; color: #526176; }
+        QToolButton[toolRole="toggle"]:hover { border-color: #b9cbe2; background: #f2f7ff; }
+        QToolButton[toolRole="toggle"]:checked { border-color: #9cbcf0; background: #e7f0ff; color: #1d4ed8; font-weight: 700; }
+        #fileButton { border: 1px solid #d7e0e9; border-radius: 8px; padding: 5px 11px; background: #f8fafc; font-weight: 700; }
+        #fileButton:hover { border-color: #aac4e8; background: #f0f6ff; }
+        #fileButton::menu-indicator { image: none; width: 0px; }
+        #zoomLabel { color: #64748b; font-size: 9px; font-weight: 700; }
+        QSlider::groove:horizontal { height: 4px; background: #dce4ed; border-radius: 2px; }
+        QSlider::sub-page:horizontal { background: #3b82f6; border-radius: 2px; }
+        QSlider::handle:horizontal { width: 14px; margin: -5px 0; border-radius: 7px; background: white; border: 2px solid #3b82f6; }
+        QMenu { background: white; border: 1px solid #d6dee8; border-radius: 8px; padding: 5px; }
+        QMenu::item { padding: 7px 28px 7px 10px; border-radius: 5px; }
+        QMenu::item:selected { background: #eaf2ff; color: #174ea6; }
+        QPushButton { border: 1px solid #cfd8e2; border-radius: 6px; padding: 5px 9px; background: #ffffff; }
+        QPushButton:hover { border-color: #9dbbe0; background: #f0f6ff; }
+        QMdiArea { background: #e3e8ee; }
         QMdiSubWindow { background: #f7f8fa; }
-        QDockWidget::title { background: #eef1f4; border: 1px solid #c7ced5; padding: 5px; text-align: left; }
-        QStatusBar { background: #f5f6f7; border-top: 1px solid #d0d5da; }
+        QDockWidget::title { background: #f4f7fa; border: 1px solid #d5dde6; padding: 6px; text-align: left; }
+        QStatusBar { background: #fbfcfd; border-top: 1px solid #d7dee6; color: #526176; }
     )");
 
     auto *root = new QWidget;
@@ -203,53 +288,66 @@ void MainWindow::setupUi()
     rootLayout->setContentsMargins(0, 0, 0, 0);
     rootLayout->setSpacing(0);
 
-    auto *ribbon = new QFrame(root);
-    ribbon->setObjectName("ribbon");
-    auto *ribbonOuter = new QVBoxLayout(ribbon);
-    ribbonOuter->setContentsMargins(5, 2, 0, 0);
-    ribbonOuter->setSpacing(0);
-    auto *tabs = new QHBoxLayout;
-    auto *appButton = new QPushButton("◉", ribbon); appButton->setObjectName("appButton"); appButton->setFixedSize(30, 30);
-    auto *tab = new QLabel("Looping", ribbon); tab->setObjectName("ribbonTab");
-    auto *style = new QLabel(tr("Style  ▾    ⓘ"), ribbon);
-    tabs->addWidget(appButton); tabs->addWidget(tab); tabs->addStretch(); tabs->addWidget(style); tabs->addSpacing(8);
-    ribbonOuter->addLayout(tabs);
-    auto *groups = new QHBoxLayout; groups->setContentsMargins(0, 0, 0, 0); groups->setSpacing(0);
+    auto *topBar = new QFrame(root);
+    topBar->setObjectName("topBar");
+    auto *barLayout = new QVBoxLayout(topBar);
+    barLayout->setContentsMargins(12, 7, 12, 7);
+    barLayout->setSpacing(5);
 
-    auto *formal = new QHBoxLayout;
-    auto *ea = ribbonButton("▦", "E/A", ribbon); ea->setCheckable(true); ea->setChecked(true);
-    auto *uml = ribbonButton("▤", "UML", ribbon); uml->setEnabled(false);
-    auto *mldButton = ribbonButton("▥", "MLD", ribbon);
-    formal->addWidget(ea); formal->addWidget(uml); formal->addWidget(mldButton);
-    groups->addWidget(ribbonGroup(tr("Formalisme"), formal, ribbon));
+    auto *header = new QHBoxLayout;
+    header->setSpacing(8);
+    auto *brandMark = new QLabel("OL", topBar); brandMark->setObjectName("brandMark"); brandMark->setFixedSize(34, 34); brandMark->setAlignment(Qt::AlignCenter);
+    auto *brandName = new QLabel("OpenLooping", topBar); brandName->setObjectName("brandName");
+    auto *workspace = new QLabel(tr("MODÈLE CONCEPTUEL"), topBar); workspace->setObjectName("workspacePill");
+    auto headerAction = [topBar](const QIcon &icon, const QString &tooltip) {
+        auto *button = new QToolButton(topBar); button->setIcon(icon); button->setIconSize(QSize(18, 18));
+        button->setToolTip(tooltip); button->setAccessibleName(tooltip); button->setProperty("toolRole", "toggle"); button->setFixedSize(31, 31);
+        button->setCursor(Qt::PointingHandCursor); return button;
+    };
+    auto *newButton = headerAction(domainIcon("new", QColor("#475569")), tr("Nouveau (Ctrl+N)"));
+    auto *openButton = headerAction(domainIcon("open", QColor("#475569")), tr("Ouvrir (Ctrl+O)"));
+    auto *saveButton = headerAction(domainIcon("save", QColor("#475569")), tr("Enregistrer (Ctrl+S)"));
+    auto *edition = new QToolButton(topBar); edition->setObjectName("fileButton"); edition->setText(tr("Édition  ▾")); edition->setPopupMode(QToolButton::InstantPopup); edition->setCursor(Qt::PointingHandCursor);
+    auto *windows = new QToolButton(topBar); windows->setObjectName("fileButton"); windows->setText(tr("Fenêtres  ▾")); windows->setPopupMode(QToolButton::InstantPopup); windows->setCursor(Qt::PointingHandCursor);
+    auto *fileButton = new QToolButton(topBar); fileButton->setObjectName("fileButton"); fileButton->setText(tr("Fichier  ▾")); fileButton->setPopupMode(QToolButton::InstantPopup); fileButton->setCursor(Qt::PointingHandCursor);
+    header->addWidget(brandMark); header->addWidget(brandName); header->addSpacing(8); header->addWidget(workspace); header->addStretch();
+    header->addWidget(newButton); header->addWidget(openButton); header->addWidget(saveButton); header->addSpacing(8);
+    header->addWidget(edition); header->addWidget(windows); header->addWidget(fileButton);
+    barLayout->addLayout(header);
 
-    auto *display = new QGridLayout; display->setHorizontalSpacing(8); display->setVerticalSpacing(2);
-    auto *rubriques = new QCheckBox(tr("Rubriques")); rubriques->setChecked(true);
-    auto *types = new QCheckBox(tr("Types données"));
-    auto *illustrations = new QCheckBox(tr("Illustrations")); illustrations->setChecked(true);
-    m_zoomLabel = new QLabel(tr("Zoom    100%")); QFont zf = m_zoomLabel->font(); zf.setBold(true); m_zoomLabel->setFont(zf);
-    auto *fit = new QPushButton(tr("▣ Ajuster à la fenêtre")); fit->setFlat(true); fit->setCursor(Qt::PointingHandCursor);
-    m_zoomSlider = new QSlider(Qt::Horizontal); m_zoomSlider->setRange(25, 200); m_zoomSlider->setValue(100); m_zoomSlider->setFixedWidth(105);
-    display->addWidget(rubriques, 0, 0); display->addWidget(m_zoomLabel, 0, 1);
-    display->addWidget(types, 1, 0); display->addWidget(fit, 1, 1);
-    display->addWidget(illustrations, 2, 0); display->addWidget(m_zoomSlider, 2, 1);
-    groups->addWidget(ribbonGroup(tr("Affichage"), display, ribbon));
+    auto *groups = new QHBoxLayout;
+    groups->setContentsMargins(0, 0, 0, 0);
+    groups->setSpacing(0);
 
-    auto *pointer = new QHBoxLayout;
-    auto *selection = ribbonButton("⌁", tr("Sélection"), ribbon); selection->setCheckable(true); selection->setChecked(true);
-    auto *prof = ribbonButton("♟", tr("Prof"), ribbon);
-    pointer->addWidget(selection); pointer->addWidget(prof);
-    groups->addWidget(ribbonGroup(tr("Pointeur"), pointer, ribbon));
+    auto *modelTools = new QHBoxLayout; modelTools->setSpacing(2);
+    auto *selection = toolButton(domainIcon("selection"), tr("Sélection"), topBar);
+    auto *entityButton = toolButton(domainIcon("entity", QColor("#2563eb")), tr("Entité"), topBar);
+    auto *associationButton = toolButton(domainIcon("association", QColor("#0891b2")), tr("Association"), topBar);
+    auto *inheritanceButton = toolButton(domainIcon("inheritance", QColor("#7c3aed")), tr("Héritage"), topBar);
+    auto *ruleButton = toolButton(domainIcon("rule", QColor("#b7791f")), tr("Règle"), topBar);
+    auto *linkButton = toolButton(domainIcon("link", QColor("#2563eb")), tr("Lien"), topBar, QStringLiteral("primary"));
+    modelTools->addWidget(selection); modelTools->addWidget(entityButton); modelTools->addWidget(associationButton);
+    modelTools->addWidget(inheritanceButton); modelTools->addWidget(ruleButton); modelTools->addWidget(linkButton);
+    groups->addWidget(toolbarGroup(tr("CONSTRUCTION"), modelTools, topBar));
 
-    auto *tools = new QHBoxLayout;
-    auto *mcdMenu = ribbonButton("▰", "MCD\n▾", ribbon);
-    auto *illustration = ribbonButton("◉", tr("Illustration\n▾"), ribbon);
-    auto *edition = ribbonButton("▣", tr("Edition\n▾"), ribbon);
-    auto *windows = ribbonButton("▤", tr("Fenêtres\n▾"), ribbon);
-    tools->addWidget(mcdMenu); tools->addWidget(illustration); tools->addWidget(edition); tools->addWidget(windows);
-    groups->addWidget(ribbonGroup(QString(), tools, ribbon));
-    groups->addStretch(); ribbonOuter->addLayout(groups);
-    rootLayout->addWidget(ribbon);
+    auto *display = new QGridLayout; display->setHorizontalSpacing(6); display->setVerticalSpacing(5);
+    auto *rubriques = toolButton(QIcon(), tr("Rubriques"), topBar, QStringLiteral("toggle")); rubriques->setToolButtonStyle(Qt::ToolButtonTextOnly); rubriques->setCheckable(true); rubriques->setChecked(true); rubriques->setMinimumSize(78, 25);
+    auto *types = toolButton(QIcon(), tr("Types"), topBar, QStringLiteral("toggle")); types->setToolButtonStyle(Qt::ToolButtonTextOnly); types->setCheckable(true); types->setMinimumSize(58, 25);
+    auto *fit = toolButton(domainIcon("fit", QColor("#475569")), tr("Ajuster"), topBar);
+    m_zoomLabel = new QLabel(tr("ZOOM  100%")); m_zoomLabel->setObjectName("zoomLabel");
+    m_zoomSlider = new QSlider(Qt::Horizontal); m_zoomSlider->setRange(25, 200); m_zoomSlider->setValue(100); m_zoomSlider->setFixedWidth(112);
+    display->addWidget(rubriques, 0, 0); display->addWidget(types, 1, 0);
+    display->addWidget(fit, 0, 1, 2, 1); display->addWidget(m_zoomLabel, 0, 2); display->addWidget(m_zoomSlider, 1, 2);
+    groups->addWidget(toolbarGroup(tr("AFFICHAGE"), display, topBar));
+
+    auto *panelTools = new QHBoxLayout; panelTools->setSpacing(2);
+    auto *mldButton = toolButton(domainIcon("panel", QColor("#0f766e")), "MLD", topBar);
+    auto *sqlButton = toolButton(domainIcon("panel", QColor("#9333ea")), "LDD", topBar);
+    panelTools->addWidget(mldButton); panelTools->addWidget(sqlButton);
+    groups->addWidget(toolbarGroup(tr("PANNEAUX"), panelTools, topBar));
+    groups->addStretch();
+    barLayout->addLayout(groups);
+    rootLayout->addWidget(topBar);
 
     m_mdiArea = new QMdiArea(root);
     m_mdiArea->setViewMode(QMdiArea::SubWindowView);
@@ -273,41 +371,27 @@ void MainWindow::setupUi()
     exportMenu->addAction(tr("MLD textuel..."), this, &MainWindow::exportMld);
     fileMenu->addSeparator();
     fileMenu->addAction(tr("Quitter"), this, &QWidget::close);
-    appButton->setMenu(fileMenu);
+    fileButton->setMenu(fileMenu);
+    connect(newButton, &QToolButton::clicked, newAction, &QAction::trigger);
+    connect(openButton, &QToolButton::clicked, openAction, &QAction::trigger);
+    connect(saveButton, &QToolButton::clicked, saveAction, &QAction::trigger);
 
-    auto *mcdTools = new QMenu(this);
-    auto *paletteAction = new QWidgetAction(mcdTools);
-    auto *palette = new QWidget;
-    auto *paletteLayout = new QHBoxLayout(palette); paletteLayout->setContentsMargins(5, 5, 5, 5); paletteLayout->setSpacing(2);
-    auto addPaletteButton = [&](const QString &symbol, const QString &label, auto callback, bool enabled = true) {
-        auto *button = ribbonButton(symbol, label, palette); button->setMinimumSize(62, 54); button->setEnabled(enabled);
-        if (enabled) connect(button, &QToolButton::clicked, this, [this, callback, mcdTools] {
-            (this->*callback)();
-            mcdTools->close();
-        });
-        paletteLayout->addWidget(button);
-    };
-    addPaletteButton("▰", tr("Entité"), &MainWindow::addEntity);
-    addPaletteButton("⬭", tr("Association"), &MainWindow::addAssociation);
-    addPaletteButton("◇", tr("Héritage"), &MainWindow::addInheritance);
-    addPaletteButton("⊗", tr("Contrainte"), &MainWindow::addEntity, false);
-    addPaletteButton("●", tr("CIF"), &MainWindow::addEntity, false);
-    addPaletteButton("▣", tr("Règle"), &MainWindow::addRule);
-    addPaletteButton("0,n", tr("Lien"), &MainWindow::startLink);
-    addPaletteButton("⌃", tr("Cassure"), &MainWindow::addEntity, false);
-    addPaletteButton("▦", tr("Sous-modèle"), &MainWindow::addEntity, false);
-    paletteAction->setDefaultWidget(palette); mcdTools->addAction(paletteAction);
-    mcdMenu->setMenu(mcdTools); mcdMenu->setPopupMode(QToolButton::InstantPopup);
+    connect(entityButton, &QToolButton::clicked, this, &MainWindow::addEntity);
+    connect(associationButton, &QToolButton::clicked, this, &MainWindow::addAssociation);
+    connect(inheritanceButton, &QToolButton::clicked, this, &MainWindow::addInheritance);
+    connect(ruleButton, &QToolButton::clicked, this, &MainWindow::addRule);
+    connect(linkButton, &QToolButton::clicked, this, &MainWindow::startLink);
     connect(mldButton, &QToolButton::clicked, this, [this] { m_mldDock->show(); });
+    connect(sqlButton, &QToolButton::clicked, this, [this] { m_sqlDock->show(); });
     connect(selection, &QToolButton::clicked, this, &MainWindow::cancelCurrentTool);
-    connect(rubriques, &QCheckBox::toggled, this, [this](bool visible) { m_showFields = visible; rebuildScene(); });
-    connect(types, &QCheckBox::toggled, this, [this](bool visible) { m_showTypes = visible; rebuildScene(); });
+    connect(rubriques, &QToolButton::toggled, this, [this](bool visible) { m_showFields = visible; rebuildScene(); });
+    connect(types, &QToolButton::toggled, this, [this](bool visible) { m_showTypes = visible; rebuildScene(); });
     connect(m_zoomSlider, &QSlider::valueChanged, this, [this](int value) {
         m_view->resetTransform(); m_view->scale(value / 100.0, value / 100.0);
-        m_zoomLabel->setText(tr("Zoom    %1%").arg(value));
+        m_zoomLabel->setText(tr("ZOOM  %1%").arg(value));
     });
     connect(m_view, &DiagramView::zoomSteps, this, [this](int steps) { m_zoomSlider->setValue(m_zoomSlider->value() + steps * 10); });
-    connect(fit, &QPushButton::clicked, this, &MainWindow::fitModelToView);
+    connect(fit, &QToolButton::clicked, this, &MainWindow::fitModelToView);
 
     auto makeDock = [this](const QString &title, QPlainTextEdit *&edit, Qt::DockWidgetArea area) {
         auto *dock = new QDockWidget(title, this); edit = new QPlainTextEdit; edit->setReadOnly(true);

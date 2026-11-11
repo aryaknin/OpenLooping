@@ -7,6 +7,9 @@ fabriquée pour remplir les trous.
 
 ## Non publié
 
+- Refonte complète de la barre supérieure : accès direct aux outils MCD,
+  pictogrammes vectoriels cohérents, groupes allégés, commandes de document
+  compactes, zoom modernisé et meilleure hiérarchie visuelle.
 - Ajout d’un aperçu dynamique pendant la création des liens : extrémité de
   départ encadrée, liaison suivant la souris et cible compatible mise en
   évidence.
