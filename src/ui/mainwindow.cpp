@@ -257,7 +257,7 @@ void MainWindow::setupUi()
     paletteAction->setDefaultWidget(palette); mcdTools->addAction(paletteAction);
     mcdMenu->setMenu(mcdTools); mcdMenu->setPopupMode(QToolButton::InstantPopup);
     connect(mldButton, &QToolButton::clicked, this, [this] { m_mldDock->show(); });
-    connect(selection, &QToolButton::clicked, this, [this] { m_pendingPlacement.clear(); m_linkMode = false; m_linkEntity.clear(); statusBar()->clearMessage(); });
+    connect(selection, &QToolButton::clicked, this, &MainWindow::cancelCurrentTool);
     connect(rubriques, &QCheckBox::toggled, this, [this](bool visible) { m_showFields = visible; rebuildScene(); });
     connect(types, &QCheckBox::toggled, this, [this](bool visible) { m_showTypes = visible; rebuildScene(); });
     connect(m_zoomSlider, &QSlider::valueChanged, this, [this](int value) {
@@ -299,12 +299,25 @@ void MainWindow::setupUi()
     connect(m_view, &DiagramView::objectMoved, this, &MainWindow::moveObject);
     connect(m_view, &DiagramView::contextRequested, this, &MainWindow::showObjectMenu);
     connect(m_view, &DiagramView::deleteRequested, this, &MainWindow::deleteSelected);
+    connect(m_view, &DiagramView::cancelRequested, this, &MainWindow::cancelCurrentTool);
+}
+
+void MainWindow::cancelCurrentTool()
+{
+    m_pendingPlacement.clear();
+    m_linkMode = false;
+    m_linkStartKind.clear();
+    m_linkStartId.clear();
+    m_view->setConnectionMode(false);
+    statusBar()->clearMessage();
 }
 
 void MainWindow::newModel()
 {
     if (!confirmDiscard()) return;
-    m_model = {}; m_path.clear(); m_dirty = false; m_linkMode = false; m_linkEntity.clear(); m_pendingPlacement.clear();
+    m_model = {}; m_path.clear(); m_dirty = false; m_linkMode = false;
+    m_linkStartKind.clear(); m_linkStartId.clear(); m_pendingPlacement.clear();
+    m_view->setConnectionMode(false);
     m_undo.clear(); m_redo.clear(); m_documentWindow->showMaximized(); rebuildScene();
 }
 
@@ -331,7 +344,10 @@ bool MainWindow::loadModel(const QString &path, bool showWarnings)
     if (native) compactNativeLayout(loaded);
     m_model = std::move(loaded);
     m_path = native ? QString() : path;
-    m_dirty = native; m_undo.clear(); m_redo.clear(); m_documentWindow->showMaximized(); rebuildScene();
+    m_dirty = native; m_undo.clear(); m_redo.clear();
+    m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear(); m_pendingPlacement.clear();
+    m_view->setConnectionMode(false);
+    m_documentWindow->showMaximized(); rebuildScene();
     QTimer::singleShot(0, this, &MainWindow::fitModelToView);
     if (showWarnings && !warnings.isEmpty()) QMessageBox::information(this, tr("Import Looping"), warnings.join("\n\n"));
     return true;
@@ -375,7 +391,8 @@ void MainWindow::exportMld()
 
 void MainWindow::addEntity()
 {
-    m_pendingPlacement = "entity"; m_linkMode = false; m_linkEntity.clear();
+    m_pendingPlacement = "entity"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
+    m_view->setConnectionMode(false);
     statusBar()->showMessage(tr("Cliquez sur le canevas pour placer l’entité"));
 }
 
@@ -416,25 +433,33 @@ void MainWindow::placeObject(const QPointF &position)
 
 void MainWindow::addAssociation()
 {
-    m_pendingPlacement = "association"; m_linkMode = false; m_linkEntity.clear();
+    m_pendingPlacement = "association"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
+    m_view->setConnectionMode(false);
     statusBar()->showMessage(tr("Cliquez sur le canevas pour placer l’association"));
 }
 
 void MainWindow::addInheritance()
 {
-    m_pendingPlacement = "inheritance"; m_linkMode = false; m_linkEntity.clear();
+    m_pendingPlacement = "inheritance"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
+    m_view->setConnectionMode(false);
     statusBar()->showMessage(tr("Cliquez sur le canevas pour placer l’héritage"));
 }
 
 void MainWindow::addRule()
 {
-    m_pendingPlacement = "rule"; m_linkMode = false; m_linkEntity.clear();
+    m_pendingPlacement = "rule"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
+    m_view->setConnectionMode(false);
     statusBar()->showMessage(tr("Cliquez sur le canevas pour placer la règle"));
 }
 
 void MainWindow::startLink()
 {
-    m_pendingPlacement.clear(); m_linkMode = true; m_linkEntity.clear(); statusBar()->showMessage(tr("Cliquez une entité, puis une association"));
+    m_pendingPlacement.clear();
+    m_linkMode = true;
+    m_linkStartKind.clear();
+    m_linkStartId.clear();
+    m_view->setConnectionMode(true);
+    statusBar()->showMessage(tr("Mode lien : cliquez une entité, une association ou un héritage"));
 }
 
 void MainWindow::moveObject(const QString &kind, const QString &id, const QPointF &position)
@@ -579,29 +604,81 @@ void MainWindow::deleteSelected()
 void MainWindow::objectClicked(const QString &kind, const QString &id)
 {
     if (!m_linkMode) return;
-    if (m_linkEntity.isEmpty() && kind == "entity") {
-        m_linkEntity = id; statusBar()->showMessage(tr("Cliquez maintenant l’association")); return;
+
+    const bool supported = kind == "entity" || kind == "association" || kind == "inheritance";
+    if (!supported || id.isEmpty()) {
+        statusBar()->showMessage(tr("Un lien relie une entité à une association ou à un héritage"), 3000);
+        return;
     }
-    if (!m_linkEntity.isEmpty() && kind == "association") {
+
+    if (m_linkStartId.isEmpty()) {
+        m_linkStartKind = kind;
+        m_linkStartId = id;
+        if (kind == "entity")
+            statusBar()->showMessage(tr("Entité sélectionnée : cliquez une association ou un héritage"));
+        else
+            statusBar()->showMessage(tr("Extrémité sélectionnée : cliquez une entité"));
+        return;
+    }
+
+    if (m_linkStartKind == kind && m_linkStartId == id) {
+        m_linkStartKind.clear();
+        m_linkStartId.clear();
+        statusBar()->showMessage(tr("Sélection annulée : choisissez une première extrémité"));
+        return;
+    }
+
+    QString entityId;
+    QString associationId;
+    QString inheritanceId;
+    if (m_linkStartKind == "entity" && kind == "association") {
+        entityId = m_linkStartId;
+        associationId = id;
+    } else if (m_linkStartKind == "association" && kind == "entity") {
+        entityId = id;
+        associationId = m_linkStartId;
+    } else if (m_linkStartKind == "entity" && kind == "inheritance") {
+        entityId = m_linkStartId;
+        inheritanceId = id;
+    } else if (m_linkStartKind == "inheritance" && kind == "entity") {
+        entityId = id;
+        inheritanceId = m_linkStartId;
+    } else {
+        m_linkStartKind = kind;
+        m_linkStartId = id;
+        statusBar()->showMessage(kind == "entity"
+            ? tr("Entité sélectionnée : cliquez une association ou un héritage")
+            : tr("Extrémité sélectionnée : cliquez une entité"));
+        return;
+    }
+
+    if (!associationId.isEmpty()) {
         for (const auto &link : m_model.links)
-            if (link.entityId == m_linkEntity && link.associationId == id) {
-                statusBar()->showMessage(tr("Ce lien existe déjà"), 3000); return;
+            if (link.entityId == entityId && link.associationId == associationId) {
+                m_linkStartKind.clear(); m_linkStartId.clear();
+                statusBar()->showMessage(tr("Ce lien existe déjà — choisissez une autre extrémité"), 3000);
+                return;
             }
         checkpoint();
-        m_model.links.append({newId(), m_linkEntity, id, Cardinality::ZeroMany, {}, {}, {}, 0});
-        m_linkMode = false; m_linkEntity.clear(); setDirty(); rebuildScene();
-        statusBar()->showMessage(tr("Lien créé avec la cardinalité 0,n"), 3000);
-    } else if (!m_linkEntity.isEmpty() && kind == "inheritance") {
+        m_model.links.append({newId(), entityId, associationId, Cardinality::ZeroMany, {}, {}, {}, 0});
+        m_linkStartKind.clear(); m_linkStartId.clear(); setDirty(); rebuildScene();
+        statusBar()->showMessage(tr("Lien 0,n créé — cliquez pour en ajouter un autre"), 3000);
+    } else if (!inheritanceId.isEmpty()) {
         for (const auto &link : m_model.inheritanceLinks)
-            if (link.entityId == m_linkEntity && link.inheritanceId == id) {
-                statusBar()->showMessage(tr("Ce lien d’héritage existe déjà"), 3000); return;
+            if (link.entityId == entityId && link.inheritanceId == inheritanceId) {
+                m_linkStartKind.clear(); m_linkStartId.clear();
+                statusBar()->showMessage(tr("Ce lien d’héritage existe déjà — choisissez une autre extrémité"), 3000);
+                return;
             }
         bool hasSupertype = false;
-        for (const auto &link : m_model.inheritanceLinks) if (link.inheritanceId == id && link.supertype) hasSupertype = true;
+        for (const auto &link : m_model.inheritanceLinks)
+            if (link.inheritanceId == inheritanceId && link.supertype) hasSupertype = true;
         checkpoint();
-        m_model.inheritanceLinks.append({newId(), m_linkEntity, id, !hasSupertype});
-        m_linkMode = false; m_linkEntity.clear(); setDirty(); rebuildScene();
-        statusBar()->showMessage(hasSupertype ? tr("Lien de sous-type créé") : tr("Lien de surtype créé"), 3000);
+        m_model.inheritanceLinks.append({newId(), entityId, inheritanceId, !hasSupertype});
+        m_linkStartKind.clear(); m_linkStartId.clear(); setDirty(); rebuildScene();
+        statusBar()->showMessage(hasSupertype
+            ? tr("Lien de sous-type créé — cliquez pour en ajouter un autre")
+            : tr("Lien de surtype créé — cliquez pour en ajouter un autre"), 3000);
     }
 }
 

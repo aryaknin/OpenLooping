@@ -33,7 +33,12 @@ if(BUILD_TESTING)
         LOOPING_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
     add_test(NAME looping_core_tests COMMAND looping_core_tests)
 
-    add_executable(looping_ui_tests tests/ui_tests.cpp src/ui/objectdialog.cpp)
+    add_executable(looping_ui_tests
+        tests/ui_tests.cpp
+        src/ui/diagramview.cpp
+        src/ui/mainwindow.cpp
+        src/ui/objectdialog.cpp
+    )
     target_link_libraries(looping_ui_tests PRIVATE looping_core Qt6::Widgets Qt6::Test)
     add_test(NAME looping_ui_tests COMMAND looping_ui_tests)
     set_tests_properties(looping_ui_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

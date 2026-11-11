@@ -6,6 +6,7 @@ class DiagramView : public QGraphicsView {
     Q_OBJECT
 public:
     explicit DiagramView(QWidget *parent = nullptr);
+    void setConnectionMode(bool active);
 
 signals:
     void objectClicked(const QString &kind, const QString &id);
@@ -13,6 +14,7 @@ signals:
     void objectMoved(const QString &kind, const QString &id, const QPointF &position);
     void contextRequested(const QString &kind, const QString &id, const QPoint &globalPosition);
     void deleteRequested();
+    void cancelRequested();
     void emptyClicked(const QPointF &position);
     void emptyDoubleClicked(const QPointF &position);
     void zoomSteps(int steps);
@@ -25,4 +27,7 @@ protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+
+private:
+    bool m_connectionMode = false;
 };

@@ -1,13 +1,21 @@
 #include "ui/objectdialog.h"
+#include "ui/diagramview.h"
+#include "ui/mainwindow.h"
+
+#include "core/persistence.h"
 
 #include <QCheckBox>
+#include <QGraphicsItem>
+#include <QGraphicsScene>
 #include <QTableWidget>
+#include <QTemporaryDir>
 #include <QtTest>
 
 class UiTests : public QObject {
     Q_OBJECT
 private slots:
     void identifierChecksAndLocksNotNull();
+    void linkToolAcceptsBothOrdersAndStaysActive();
 };
 
 void UiTests::identifierChecksAndLocksNotNull()
@@ -30,6 +38,68 @@ void UiTests::identifierChecksAndLocksNotNull()
     const auto fields = dialog.fields();
     QVERIFY(fields[0].primaryKey);
     QVERIFY(fields[0].notNull);
+}
+
+void UiTests::linkToolAcceptsBothOrdersAndStaysActive()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+
+    looping::Model model;
+    model.name = QStringLiteral("Liens");
+    model.entities = {
+        {QStringLiteral("client"), QStringLiteral("Client"), QStringLiteral("Client"), {20, 20}, {}},
+        {QStringLiteral("commande"), QStringLiteral("Commande"), QStringLiteral("Commande"), {20, 220}, {}}
+    };
+    model.associations = {
+        {QStringLiteral("passe"), QStringLiteral("passe"), QStringLiteral("passe"), {300, 120}, {}}
+    };
+    const QString path = directory.filePath(QStringLiteral("links.lrea"));
+    QString error;
+    QVERIFY2(looping::Persistence::save(model, path, &error), qPrintable(error));
+
+    MainWindow window;
+    QVERIFY(window.loadModel(path, false));
+    window.show();
+    QCoreApplication::processEvents();
+    auto *view = window.findChild<DiagramView *>();
+    QVERIFY(view);
+
+    auto linkCount = [view] {
+        int count = 0;
+        for (auto *item : view->scene()->items())
+            if (item->data(0).toString() == QStringLiteral("link")) ++count;
+        return count;
+    };
+
+    auto clickObject = [view](const QString &kind, const QString &id) {
+        for (auto *item : view->scene()->items()) {
+            if (item->data(0).toString() != kind || item->data(1).toString() != id) continue;
+            QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                              view->mapFromScene(item->sceneBoundingRect().center()));
+            QCoreApplication::processEvents();
+            return true;
+        }
+        return false;
+    };
+
+    QVERIFY(QMetaObject::invokeMethod(&window, "startLink", Qt::DirectConnection));
+    QVERIFY(clickObject(QStringLiteral("association"), QStringLiteral("passe")));
+    QVERIFY(clickObject(QStringLiteral("entity"), QStringLiteral("client")));
+    QCOMPARE(linkCount(), 1);
+
+    // Le mode reste actif : un second lien se crée sans recliquer l'outil.
+    QVERIFY(clickObject(QStringLiteral("entity"), QStringLiteral("commande")));
+    QVERIFY(clickObject(QStringLiteral("association"), QStringLiteral("passe")));
+    QCOMPARE(linkCount(), 2);
+
+    // Un doublon est refusé et ne désactive pas l'outil.
+    QVERIFY(clickObject(QStringLiteral("entity"), QStringLiteral("client")));
+    QVERIFY(clickObject(QStringLiteral("association"), QStringLiteral("passe")));
+    QCOMPARE(linkCount(), 2);
+
+    QTest::keyClick(view, Qt::Key_Escape);
+    QCOMPARE(view->viewport()->cursor().shape(), Qt::ArrowCursor);
 }
 
 QTEST_MAIN(UiTests)

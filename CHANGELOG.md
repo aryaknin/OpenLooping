@@ -5,6 +5,17 @@ datés et les paquets Debian conservés. Les versions dont les sources n'ont pas
 survécu sont explicitement signalées : aucune source historique n'a été
 fabriquée pour remplir les trous.
 
+## Non publié
+
+- Correction du mode de création des liens sur le canevas.
+- Sélection des extrémités dans les deux ordres : entité–association ou
+  association–entité, ainsi qu'entité–héritage dans les deux sens.
+- Mode lien persistant pour poser plusieurs branches successivement, avec
+  curseur dédié, messages d'étape, refus des doublons et annulation par
+  `Échap`.
+- Test d'interface utilisant de véritables clics de souris sur les objets du
+  canevas.
+
 ## 0.6.1 — 9 novembre 2026
 
 - Unification complète de l'identité sous le nom OpenLooping : application,

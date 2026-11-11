@@ -18,6 +18,12 @@ DiagramView::DiagramView(QWidget *parent) : QGraphicsView(parent)
     setViewportUpdateMode(QGraphicsView::BoundingRectViewportUpdate);
 }
 
+void DiagramView::setConnectionMode(bool active)
+{
+    m_connectionMode = active;
+    viewport()->setCursor(active ? Qt::CrossCursor : Qt::ArrowCursor);
+}
+
 void DiagramView::drawBackground(QPainter *painter, const QRectF &rect)
 {
     painter->fillRect(rect, QColor("#f7f8fa"));
@@ -41,6 +47,16 @@ void DiagramView::drawBackground(QPainter *painter, const QRectF &rect)
 
 void DiagramView::mousePressEvent(QMouseEvent *event)
 {
+    if (m_connectionMode && event->button() == Qt::LeftButton) {
+        if (auto *item = itemAt(event->position().toPoint())) {
+            while (item->parentItem()) item = item->parentItem();
+            emit objectClicked(item->data(0).toString(), item->data(1).toString());
+        } else {
+            emit emptyClicked(mapToScene(event->position().toPoint()));
+        }
+        event->accept();
+        return;
+    }
     if (auto *item = itemAt(event->position().toPoint())) {
         while (item->parentItem()) item = item->parentItem();
         emit objectClicked(item->data(0).toString(), item->data(1).toString());
@@ -82,6 +98,11 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *event)
 
 void DiagramView::keyPressEvent(QKeyEvent *event)
 {
+    if (event->key() == Qt::Key_Escape) {
+        emit cancelRequested();
+        event->accept();
+        return;
+    }
     if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
         emit deleteRequested();
         event->accept();

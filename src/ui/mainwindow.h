@@ -35,6 +35,7 @@ private slots:
     void addInheritance();
     void addRule();
     void startLink();
+    void cancelCurrentTool();
     void objectClicked(const QString &kind, const QString &id);
     void editObject(const QString &kind, const QString &id);
     void placeObject(const QPointF &position);
@@ -65,7 +66,8 @@ private:
     bool m_linkMode = false;
     bool m_showFields = true;
     bool m_showTypes = false;
-    QString m_linkEntity;
+    QString m_linkStartKind;
+    QString m_linkStartId;
     QString m_pendingPlacement;
     QVector<looping::Model> m_undo;
     QVector<looping::Model> m_redo;
