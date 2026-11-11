@@ -36,9 +36,11 @@ private slots:
     void addInheritance();
     void addRule();
     void startLink();
+    void startBreak();
     void cancelCurrentTool();
     void repeatLastTool();
     void objectClicked(const QString &kind, const QString &id);
+    void objectClickedAt(const QString &kind, const QString &id, const QPointF &position);
     void editObject(const QString &kind, const QString &id);
     void placeObject(const QPointF &position);
     void moveObject(const QString &kind, const QString &id, const QPointF &position);
@@ -66,6 +68,7 @@ private:
     QString m_path;
     bool m_dirty = false;
     bool m_linkMode = false;
+    bool m_breakMode = false;
     bool m_showFields = true;
     bool m_showTypes = false;
     QString m_linkStartKind;

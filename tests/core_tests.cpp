@@ -62,10 +62,13 @@ void CoreTests::persistenceRoundTrip()
 {
     QTemporaryDir dir; QVERIFY(dir.isValid());
     const QString path = dir.filePath("model.lrea"); QString error;
-    QVERIFY2(Persistence::save(sample(Cardinality::OneOne), path, &error), qPrintable(error));
+    auto model = sample(Cardinality::OneOne);
+    model.links[0].breakpoints = {{75, 40}, {140, 70}};
+    QVERIFY2(Persistence::save(model, path, &error), qPrintable(error));
     Model loaded; QVERIFY2(Persistence::load(loaded, path, &error), qPrintable(error));
     QCOMPARE(loaded.entities.size(), 2); QCOMPARE(loaded.links.size(), 2);
     QCOMPARE(loaded.links[1].cardinality, Cardinality::OneOne);
+    QCOMPARE(loaded.links[0].breakpoints, model.links[0].breakpoints);
 }
 
 void CoreTests::primaryKeyAlwaysImpliesNotNull()

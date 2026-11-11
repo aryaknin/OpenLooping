@@ -56,10 +56,10 @@ struct VisualNode {
     bool ellipse = false;
 };
 
-class InteractiveLinkItem final : public QGraphicsLineItem {
+class InteractiveLinkItem final : public QGraphicsPathItem {
 public:
-    InteractiveLinkItem(const QLineF &line, const QPen &pen)
-        : QGraphicsLineItem(line), m_visualPen(pen)
+    InteractiveLinkItem(const QPainterPath &path, const QPen &pen)
+        : QGraphicsPathItem(path), m_visualPen(pen)
     {
         setPen(pen);
         setFlag(QGraphicsItem::ItemIsSelectable);
@@ -67,18 +67,16 @@ public:
 
     QRectF boundingRect() const override
     {
-        return QGraphicsLineItem::boundingRect().adjusted(-7, -7, 7, 7);
+        return QGraphicsPathItem::boundingRect().adjusted(-7, -7, 7, 7);
     }
 
     QPainterPath shape() const override
     {
-        QPainterPath centerLine;
-        centerLine.moveTo(line().p1());
-        centerLine.lineTo(line().p2());
         QPainterPathStroker stroker;
         stroker.setWidth(14);
         stroker.setCapStyle(Qt::RoundCap);
-        return stroker.createStroke(centerLine);
+        stroker.setJoinStyle(Qt::RoundJoin);
+        return stroker.createStroke(path());
     }
 
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *) override
@@ -87,10 +85,10 @@ public:
         if (isSelected()) {
             QPen highlight(QColor(37, 99, 235, 90), 7, Qt::SolidLine, Qt::RoundCap);
             painter->setPen(highlight);
-            painter->drawLine(line());
+            painter->drawPath(path());
         }
         painter->setPen(m_visualPen);
-        painter->drawLine(line());
+        painter->drawPath(path());
     }
 
 private:
@@ -116,6 +114,16 @@ QPointF boundaryPoint(const VisualNode &node, const QPointF &towards)
         factor = qMin(horizontal, vertical);
     }
     return center + delta * factor;
+}
+
+qreal pointSegmentDistanceSquared(const QPointF &point, const QPointF &start, const QPointF &end)
+{
+    const QPointF segment = end - start;
+    const qreal lengthSquared = QPointF::dotProduct(segment, segment);
+    if (qFuzzyIsNull(lengthSquared)) return QPointF::dotProduct(point - start, point - start);
+    const qreal position = qBound<qreal>(0, QPointF::dotProduct(point - start, segment) / lengthSquared, 1);
+    const QPointF delta = point - (start + segment * position);
+    return QPointF::dotProduct(delta, delta);
 }
 
 void compactNativeLayout(Model &model)
@@ -390,7 +398,7 @@ void MainWindow::setupUi()
     };
     addPlannedTool(tr("Contrainte inter-associations"));
     addPlannedTool(tr("CIF"));
-    addPlannedTool(tr("Cassure de lien"));
+    advancedMenu->addAction(tr("Cassure de lien"), this, &MainWindow::startBreak);
     addPlannedTool(tr("Sous-modèle"));
     addPlannedTool(tr("Illustration"));
     advancedMenu->addSeparator();
@@ -447,6 +455,7 @@ void MainWindow::setupUi()
     auto *deleteAction = editionMenu->addAction(tr("Supprimer"), this, &MainWindow::deleteSelected); deleteAction->setShortcut(QKeySequence::Delete); addAction(deleteAction);
     edition->setMenu(editionMenu); edition->setPopupMode(QToolButton::InstantPopup);
     connect(m_view, &DiagramView::objectClicked, this, &MainWindow::objectClicked);
+    connect(m_view, &DiagramView::objectClickedAt, this, &MainWindow::objectClickedAt);
     connect(m_view, &DiagramView::objectDoubleClicked, this, &MainWindow::editObject);
     connect(m_view, &DiagramView::emptyClicked, this, &MainWindow::placeObject);
     connect(m_view, &DiagramView::objectMoved, this, &MainWindow::moveObject);
@@ -460,6 +469,7 @@ void MainWindow::cancelCurrentTool()
 {
     m_pendingPlacement.clear();
     m_linkMode = false;
+    m_breakMode = false;
     m_linkStartKind.clear();
     m_linkStartId.clear();
     m_view->setConnectionMode(false);
@@ -470,6 +480,7 @@ void MainWindow::cancelCurrentTool()
 void MainWindow::repeatLastTool()
 {
     if (m_lastTool == "link") startLink();
+    else if (m_lastTool == "break") startBreak();
     else if (m_lastTool == "entity") addEntity();
     else if (m_lastTool == "association") addAssociation();
     else if (m_lastTool == "inheritance") addInheritance();
@@ -479,7 +490,7 @@ void MainWindow::repeatLastTool()
 void MainWindow::newModel()
 {
     if (!confirmDiscard()) return;
-    m_model = {}; m_path.clear(); m_dirty = false; m_linkMode = false;
+    m_model = {}; m_path.clear(); m_dirty = false; m_linkMode = false; m_breakMode = false;
     m_linkStartKind.clear(); m_linkStartId.clear(); m_pendingPlacement.clear();
     m_view->setConnectionMode(false);
     if (m_modeButtons && m_modeButtons->button(0)) m_modeButtons->button(0)->setChecked(true);
@@ -510,7 +521,7 @@ bool MainWindow::loadModel(const QString &path, bool showWarnings)
     m_model = std::move(loaded);
     m_path = native ? QString() : path;
     m_dirty = native; m_undo.clear(); m_redo.clear();
-    m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear(); m_pendingPlacement.clear();
+    m_linkMode = false; m_breakMode = false; m_linkStartKind.clear(); m_linkStartId.clear(); m_pendingPlacement.clear();
     m_view->setConnectionMode(false);
     if (m_modeButtons && m_modeButtons->button(0)) m_modeButtons->button(0)->setChecked(true);
     m_documentWindow->showMaximized(); rebuildScene();
@@ -558,6 +569,7 @@ void MainWindow::exportMld()
 void MainWindow::addEntity()
 {
     m_lastTool = "entity";
+    m_breakMode = false;
     if (m_modeButtons && m_modeButtons->button(1)) m_modeButtons->button(1)->setChecked(true);
     m_pendingPlacement = "entity"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
@@ -603,6 +615,7 @@ void MainWindow::placeObject(const QPointF &position)
 void MainWindow::addAssociation()
 {
     m_lastTool = "association";
+    m_breakMode = false;
     if (m_modeButtons && m_modeButtons->button(2)) m_modeButtons->button(2)->setChecked(true);
     m_pendingPlacement = "association"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
@@ -612,6 +625,7 @@ void MainWindow::addAssociation()
 void MainWindow::addInheritance()
 {
     m_lastTool = "inheritance";
+    m_breakMode = false;
     if (m_modeButtons && m_modeButtons->button(3)) m_modeButtons->button(3)->setChecked(true);
     m_pendingPlacement = "inheritance"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
@@ -621,6 +635,7 @@ void MainWindow::addInheritance()
 void MainWindow::addRule()
 {
     m_lastTool = "rule";
+    m_breakMode = false;
     if (m_modeButtons && m_modeButtons->button(4)) m_modeButtons->button(4)->setChecked(true);
     m_pendingPlacement = "rule"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
@@ -630,6 +645,7 @@ void MainWindow::addRule()
 void MainWindow::startLink()
 {
     m_lastTool = "link";
+    m_breakMode = false;
     if (m_modeButtons && m_modeButtons->button(5)) m_modeButtons->button(5)->setChecked(true);
     m_pendingPlacement.clear();
     m_linkMode = true;
@@ -637,6 +653,24 @@ void MainWindow::startLink()
     m_linkStartId.clear();
     m_view->setConnectionMode(true);
     statusBar()->showMessage(tr("Mode lien : cliquez une entité, une association ou un héritage"));
+}
+
+void MainWindow::startBreak()
+{
+    m_lastTool = "break";
+    m_pendingPlacement.clear();
+    m_linkMode = false;
+    m_breakMode = true;
+    m_linkStartKind.clear();
+    m_linkStartId.clear();
+    m_view->setConnectionMode(false);
+    m_view->viewport()->setCursor(Qt::CrossCursor);
+    if (m_modeButtons) {
+        m_modeButtons->setExclusive(false);
+        for (auto *button : m_modeButtons->buttons()) button->setChecked(false);
+        m_modeButtons->setExclusive(true);
+    }
+    statusBar()->showMessage(tr("Mode cassure : cliquez à l’endroit souhaité sur un lien"));
 }
 
 void MainWindow::moveObject(const QString &kind, const QString &id, const QPointF &position)
@@ -725,7 +759,9 @@ void MainWindow::pasteClipboard()
     }
     for (auto link : m_clipboard.links) {
         if (!ids.contains(link.entityId) || !ids.contains(link.associationId)) continue;
-        link.id = newId(); link.entityId = ids.value(link.entityId); link.associationId = ids.value(link.associationId); m_model.links.append(link);
+        link.id = newId(); link.entityId = ids.value(link.entityId); link.associationId = ids.value(link.associationId);
+        for (auto &breakpoint : link.breakpoints) breakpoint += offset;
+        m_model.links.append(link);
     }
     for (auto link : m_clipboard.inheritanceLinks) {
         if (!ids.contains(link.entityId) || !ids.contains(link.inheritanceId)) continue;
@@ -864,6 +900,43 @@ void MainWindow::objectClicked(const QString &kind, const QString &id)
     }
 }
 
+void MainWindow::objectClickedAt(const QString &kind, const QString &id, const QPointF &position)
+{
+    if (!m_breakMode) return;
+    if (kind != "link") {
+        statusBar()->showMessage(tr("Cliquez directement sur un lien pour ajouter une cassure"), 3000);
+        return;
+    }
+    auto *link = m_model.link(id);
+    const auto *entity = link ? m_model.entity(link->entityId) : nullptr;
+    const auto *association = link ? m_model.association(link->associationId) : nullptr;
+    if (!link || !entity || !association) return;
+    for (const auto &breakpoint : link->breakpoints)
+        if (QLineF(breakpoint, position).length() < 10) {
+            statusBar()->showMessage(tr("Une cassure existe déjà à cet endroit"), 2500);
+            return;
+        }
+
+    QVector<QPointF> route{entity->position};
+    route += link->breakpoints;
+    route.append(association->position);
+    qsizetype insertAt = 0;
+    qreal nearest = std::numeric_limits<qreal>::max();
+    for (qsizetype index = 0; index + 1 < route.size(); ++index) {
+        const qreal distance = pointSegmentDistanceSquared(position, route[index], route[index + 1]);
+        if (distance < nearest) { nearest = distance; insertAt = index; }
+    }
+
+    checkpoint();
+    link->breakpoints.insert(insertAt, position);
+    m_breakMode = false;
+    m_view->viewport()->setCursor(Qt::ArrowCursor);
+    if (m_modeButtons && m_modeButtons->button(0)) m_modeButtons->button(0)->setChecked(true);
+    setDirty();
+    rebuildScene();
+    statusBar()->showMessage(tr("Cassure ajoutée — clic droit sur le canevas pour répéter"), 4000);
+}
+
 void MainWindow::editObject(const QString &kind, const QString &id)
 {
     if (kind == "entity") {
@@ -989,14 +1062,26 @@ void MainWindow::rebuildScene()
         if (!nodes.contains(l.entityId) || !nodes.contains(l.associationId)) continue;
         const auto entityNode = nodes.value(l.entityId);
         const auto associationNode = nodes.value(l.associationId);
-        QLineF geometry(boundaryPoint(entityNode, associationNode.bounds.center()),
-                        boundaryPoint(associationNode, entityNode.bounds.center()));
+        const QPointF firstTarget = l.breakpoints.isEmpty() ? associationNode.bounds.center() : l.breakpoints.first();
+        const QPointF lastTarget = l.breakpoints.isEmpty() ? entityNode.bounds.center() : l.breakpoints.last();
+        QVector<QPointF> route{boundaryPoint(entityNode, firstTarget)};
+        route += l.breakpoints;
+        route.append(boundaryPoint(associationNode, lastTarget));
+        QPainterPath linkPath(route.first());
+        for (qsizetype index = 1; index < route.size(); ++index) linkPath.lineTo(route[index]);
+        const QLineF firstSegment(route[0], route[1]);
         QPen linkPen(QColor("#59656d"), 1.35); linkPen.setCapStyle(Qt::RoundCap);
-        auto *line = new InteractiveLinkItem(geometry, linkPen);
+        linkPen.setJoinStyle(Qt::RoundJoin);
+        auto *line = new InteractiveLinkItem(linkPath, linkPen);
         m_scene->addItem(line);
         line->setData(0, "link"); line->setData(1, l.id); line->setZValue(-1);
-        const QPointF direction = geometry.p2() - geometry.p1();
-        const qreal length = geometry.length();
+        for (const auto &point : l.breakpoints) {
+            auto *handle = new QGraphicsEllipseItem(QRectF(-4, -4, 8, 8), line);
+            handle->setPos(point); handle->setPen(QPen(QColor("#64748b"), 1.2)); handle->setBrush(Qt::white);
+            handle->setZValue(3);
+        }
+        const QPointF direction = firstSegment.p2() - firstSegment.p1();
+        const qreal length = firstSegment.length();
         const QPointF normal = length > 0 ? QPointF(-direction.y() / length * 9, direction.x() / length * 9) : QPointF();
         const QString cardinality = cardinalityName(l);
         const QFont labelFont("DejaVu Sans", 8, QFont::DemiBold);
@@ -1006,9 +1091,12 @@ void MainWindow::rebuildScene()
             : QStringLiteral("%1  ·  %2").arg(cardinality, l.role.trimmed());
         const QString displayLabel = labelMetrics.elidedText(fullLabel, Qt::ElideRight, 220);
         const QSizeF labelSize(labelMetrics.horizontalAdvance(displayLabel) + 10, 20);
+        const qreal labelProgress = length > 0
+            ? qBound<qreal>(0.16, (labelSize.width() / 2.0 + 16.0) / length, 0.72)
+            : 0.16;
         auto *badge = new QGraphicsRectItem(QRectF(QPointF(), labelSize), line);
         badge->setPen(QPen(QColor("#d2d7da"), 0.8)); badge->setBrush(QColor(255, 255, 255, 235));
-        badge->setPos(geometry.pointAt(0.16) + normal - QPointF(labelSize.width() / 2, labelSize.height() / 2));
+        badge->setPos(firstSegment.pointAt(labelProgress) + normal - QPointF(labelSize.width() / 2, labelSize.height() / 2));
         badge->setZValue(2);
         badge->setToolTip(fullLabel);
         auto *label = new QGraphicsTextItem(displayLabel, badge); label->setFont(labelFont); label->setDefaultTextColor(QColor("#344047")); label->setPos(4, -1);

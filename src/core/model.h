@@ -58,6 +58,7 @@ struct Link {
     QString customMax;
     QString role;
     int foreignKeyPrimaryPosition = 0;
+    QVector<QPointF> breakpoints;
 };
 
 struct Inheritance {

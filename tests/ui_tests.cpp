@@ -7,6 +7,7 @@
 #include <QCheckBox>
 #include <QContextMenuEvent>
 #include <QFrame>
+#include <QGraphicsEllipseItem>
 #include <QGraphicsItem>
 #include <QGraphicsScene>
 #include <QTableWidget>
@@ -203,6 +204,20 @@ void UiTests::linksHaveComfortableHitAreaAndDisplayRole()
                       view->mapFromScene(center + offset));
     QCoreApplication::processEvents();
     QVERIFY(linkItem->isSelected());
+
+    QVERIFY(QMetaObject::invokeMethod(&window, "startBreak", Qt::DirectConnection));
+    QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                      view->mapFromScene(center + offset));
+    QCoreApplication::processEvents();
+    bool breakpointVisible = false;
+    for (auto *item : view->scene()->items()) {
+        if (item->data(0).toString() != QStringLiteral("link")) continue;
+        for (auto *child : item->childItems())
+            breakpointVisible = breakpointVisible || qgraphicsitem_cast<QGraphicsEllipseItem *>(child);
+    }
+    QVERIFY(breakpointVisible);
+    const QString screenshotPath = qEnvironmentVariable("OPENLOOPING_BREAK_SCREENSHOT");
+    if (!screenshotPath.isEmpty()) QVERIFY(window.grab().save(screenshotPath));
 }
 
 void UiTests::modernToolbarExposesPrimaryActionsAndFits()

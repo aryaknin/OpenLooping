@@ -16,6 +16,9 @@ fabriquée pour remplir les trous.
   dans un menu dédié, avec indication honnête des fonctions encore à venir.
 - Raccourci de répétition à la Looping : un clic droit sur le canevas vide
   réactive le dernier outil de construction, notamment Lien après Sélection.
+- Premier outil avancé activé : Cassure permet de cliquer sur un lien pour lui
+  ajouter un point de passage, affiché sur le canevas, sauvegardé dans `.lrea`
+  et correctement décalé lors d’une duplication.
 - Ajout d’un aperçu dynamique pendant la création des liens : extrémité de
   départ encadrée, liaison suivant la souris et cible compatible mise en
   évidence.

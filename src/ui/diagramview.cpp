@@ -125,6 +125,8 @@ void DiagramView::mousePressEvent(QMouseEvent *event)
         if (auto *item = itemAt(event->position().toPoint())) {
             while (item->parentItem()) item = item->parentItem();
             emit objectClicked(item->data(0).toString(), item->data(1).toString());
+            emit objectClickedAt(item->data(0).toString(), item->data(1).toString(),
+                                 mapToScene(event->position().toPoint()));
         } else {
             emit emptyClicked(mapToScene(event->position().toPoint()));
         }
@@ -134,6 +136,8 @@ void DiagramView::mousePressEvent(QMouseEvent *event)
     if (auto *item = itemAt(event->position().toPoint())) {
         while (item->parentItem()) item = item->parentItem();
         emit objectClicked(item->data(0).toString(), item->data(1).toString());
+        emit objectClickedAt(item->data(0).toString(), item->data(1).toString(),
+                             mapToScene(event->position().toPoint()));
     } else emit emptyClicked(mapToScene(event->position().toPoint()));
     QGraphicsView::mousePressEvent(event);
 }

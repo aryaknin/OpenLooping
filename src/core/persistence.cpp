@@ -52,11 +52,16 @@ bool Persistence::save(const Model &model, const QString &path, QString *error)
     }
     root["associations"] = associations;
     QJsonArray links;
-    for (const auto &l : model.links)
+    for (const auto &l : model.links) {
+        QJsonArray breakpoints;
+        for (const auto &point : l.breakpoints)
+            breakpoints.append(QJsonObject{{"x", point.x()}, {"y", point.y()}});
         links.append(QJsonObject{{"id", l.id}, {"entityId", l.entityId}, {"associationId", l.associationId},
                                  {"cardinality", static_cast<int>(l.cardinality)}, {"customMin", l.customMin},
                                  {"customMax", l.customMax}, {"role", l.role},
-                                 {"foreignKeyPrimaryPosition", l.foreignKeyPrimaryPosition}});
+                                 {"foreignKeyPrimaryPosition", l.foreignKeyPrimaryPosition},
+                                 {"breakpoints", breakpoints}});
+    }
     root["links"] = links;
     QJsonArray inheritances;
     for (const auto &h : model.inheritances)
@@ -141,10 +146,15 @@ bool Persistence::load(Model &model, const QString &path, QString *error, QStrin
     }
     for (const auto value : root["links"].toArray()) {
         const auto o = value.toObject();
-        loaded.links.append({o["id"].toString(), o["entityId"].toString(), o["associationId"].toString(),
-                             static_cast<Cardinality>(o["cardinality"].toInt()), o["customMin"].toString(),
-                             o["customMax"].toString(), o["role"].toString(),
-                             o["foreignKeyPrimaryPosition"].toInt()});
+        Link link{o["id"].toString(), o["entityId"].toString(), o["associationId"].toString(),
+                  static_cast<Cardinality>(o["cardinality"].toInt()), o["customMin"].toString(),
+                  o["customMax"].toString(), o["role"].toString(),
+                  o["foreignKeyPrimaryPosition"].toInt()};
+        for (const auto pointValue : o["breakpoints"].toArray()) {
+            const auto point = pointValue.toObject();
+            link.breakpoints.append({point["x"].toDouble(), point["y"].toDouble()});
+        }
+        loaded.links.append(link);
     }
     for (const auto value : root["inheritances"].toArray()) {
         const auto o = value.toObject();
