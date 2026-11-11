@@ -37,6 +37,7 @@
 #include <QPushButton>
 #include <QPolygonF>
 #include <QPainterPath>
+#include <QPainterPathStroker>
 #include <QSlider>
 #include <QStatusBar>
 #include <QToolButton>
@@ -51,6 +52,47 @@ namespace {
 struct VisualNode {
     QRectF bounds;
     bool ellipse = false;
+};
+
+class InteractiveLinkItem final : public QGraphicsLineItem {
+public:
+    InteractiveLinkItem(const QLineF &line, const QPen &pen)
+        : QGraphicsLineItem(line), m_visualPen(pen)
+    {
+        setPen(pen);
+        setFlag(QGraphicsItem::ItemIsSelectable);
+    }
+
+    QRectF boundingRect() const override
+    {
+        return QGraphicsLineItem::boundingRect().adjusted(-7, -7, 7, 7);
+    }
+
+    QPainterPath shape() const override
+    {
+        QPainterPath centerLine;
+        centerLine.moveTo(line().p1());
+        centerLine.lineTo(line().p2());
+        QPainterPathStroker stroker;
+        stroker.setWidth(14);
+        stroker.setCapStyle(Qt::RoundCap);
+        return stroker.createStroke(centerLine);
+    }
+
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *) override
+    {
+        painter->setRenderHint(QPainter::Antialiasing);
+        if (isSelected()) {
+            QPen highlight(QColor(37, 99, 235, 90), 7, Qt::SolidLine, Qt::RoundCap);
+            painter->setPen(highlight);
+            painter->drawLine(line());
+        }
+        painter->setPen(m_visualPen);
+        painter->drawLine(line());
+    }
+
+private:
+    QPen m_visualPen;
 };
 
 QPointF boundaryPoint(const VisualNode &node, const QPointF &towards)
@@ -815,20 +857,26 @@ void MainWindow::rebuildScene()
         QLineF geometry(boundaryPoint(entityNode, associationNode.bounds.center()),
                         boundaryPoint(associationNode, entityNode.bounds.center()));
         QPen linkPen(QColor("#59656d"), 1.35); linkPen.setCapStyle(Qt::RoundCap);
-        auto *line = m_scene->addLine(geometry, linkPen);
+        auto *line = new InteractiveLinkItem(geometry, linkPen);
+        m_scene->addItem(line);
         line->setData(0, "link"); line->setData(1, l.id); line->setZValue(-1);
-        line->setFlag(QGraphicsItem::ItemIsSelectable);
         const QPointF direction = geometry.p2() - geometry.p1();
         const qreal length = geometry.length();
         const QPointF normal = length > 0 ? QPointF(-direction.y() / length * 9, direction.x() / length * 9) : QPointF();
         const QString cardinality = cardinalityName(l);
         const QFont labelFont("DejaVu Sans", 8, QFont::DemiBold);
-        const QSizeF labelSize(QFontMetrics(labelFont).horizontalAdvance(cardinality) + 10, 20);
+        const QFontMetrics labelMetrics(labelFont);
+        const QString fullLabel = l.role.trimmed().isEmpty()
+            ? cardinality
+            : QStringLiteral("%1  ·  %2").arg(cardinality, l.role.trimmed());
+        const QString displayLabel = labelMetrics.elidedText(fullLabel, Qt::ElideRight, 220);
+        const QSizeF labelSize(labelMetrics.horizontalAdvance(displayLabel) + 10, 20);
         auto *badge = new QGraphicsRectItem(QRectF(QPointF(), labelSize), line);
         badge->setPen(QPen(QColor("#d2d7da"), 0.8)); badge->setBrush(QColor(255, 255, 255, 235));
         badge->setPos(geometry.pointAt(0.16) + normal - QPointF(labelSize.width() / 2, labelSize.height() / 2));
         badge->setZValue(2);
-        auto *label = new QGraphicsTextItem(cardinality, badge); label->setFont(labelFont); label->setDefaultTextColor(QColor("#344047")); label->setPos(4, -1);
+        badge->setToolTip(fullLabel);
+        auto *label = new QGraphicsTextItem(displayLabel, badge); label->setFont(labelFont); label->setDefaultTextColor(QColor("#344047")); label->setPos(4, -1);
     }
     for (const auto &l : m_model.inheritanceLinks) {
         if (!nodes.contains(l.entityId) || !nodes.contains(l.inheritanceId)) continue;

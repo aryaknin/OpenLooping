@@ -17,6 +17,7 @@ private slots:
     void identifierChecksAndLocksNotNull();
     void linkToolAcceptsBothOrdersAndStaysActive();
     void linkToolShowsAndClearsConnectionPreview();
+    void linksHaveComfortableHitAreaAndDisplayRole();
 };
 
 void UiTests::identifierChecksAndLocksNotNull()
@@ -134,6 +135,54 @@ void UiTests::linkToolShowsAndClearsConnectionPreview()
 
     view.setConnectionMode(false);
     QCOMPARE(view.viewport()->cursor().shape(), Qt::ArrowCursor);
+}
+
+void UiTests::linksHaveComfortableHitAreaAndDisplayRole()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+
+    looping::Model model;
+    model.entities = {
+        {QStringLiteral("client"), QStringLiteral("Client"), QStringLiteral("Client"), {20, 20}, {}}
+    };
+    model.associations = {
+        {QStringLiteral("passe"), QStringLiteral("passe"), QStringLiteral("passe"), {320, 20}, {}}
+    };
+    looping::Link link{QStringLiteral("lien"), QStringLiteral("client"), QStringLiteral("passe")};
+    link.role = QStringLiteral("commanditaire");
+    model.links = {link};
+    const QString path = directory.filePath(QStringLiteral("role.lrea"));
+    QString error;
+    QVERIFY2(looping::Persistence::save(model, path, &error), qPrintable(error));
+
+    MainWindow window;
+    QVERIFY(window.loadModel(path, false));
+    window.show();
+    QCoreApplication::processEvents();
+    auto *view = window.findChild<DiagramView *>();
+    QVERIFY(view);
+
+    QGraphicsItem *linkItem = nullptr;
+    bool roleVisible = false;
+    for (auto *item : view->scene()->items()) {
+        if (item->data(0).toString() == QStringLiteral("link")) linkItem = item;
+        if (auto *text = qgraphicsitem_cast<QGraphicsTextItem *>(item))
+            roleVisible = roleVisible || text->toPlainText().contains(QStringLiteral("commanditaire"));
+    }
+    QVERIFY(linkItem);
+    QVERIFY(roleVisible);
+
+    const QRectF bounds = linkItem->shape().boundingRect();
+    QVERIFY2(bounds.height() >= 13.0 || bounds.width() >= 13.0,
+             "La zone cliquable du lien doit être sensiblement plus large que son trait visible");
+
+    const QPointF center = linkItem->sceneBoundingRect().center();
+    const QPointF offset = bounds.width() > bounds.height() ? QPointF(0, 5) : QPointF(5, 0);
+    QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                      view->mapFromScene(center + offset));
+    QCoreApplication::processEvents();
+    QVERIFY(linkItem->isSelected());
 }
 
 QTEST_MAIN(UiTests)
