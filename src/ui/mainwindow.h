@@ -44,6 +44,9 @@ private slots:
     void editObject(const QString &kind, const QString &id);
     void placeObject(const QPointF &position);
     void moveObject(const QString &kind, const QString &id, const QPointF &position);
+    void moveBreakpoint(const QString &linkId, int index, const QPointF &position);
+    void removeBreakpoint(const QString &linkId, int index);
+    void showBreakpointMenu(const QString &linkId, int index, const QPoint &globalPosition);
     void showObjectMenu(const QString &kind, const QString &id, const QPoint &globalPosition);
     void deleteSelected();
     void undo();

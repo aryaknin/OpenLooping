@@ -19,6 +19,9 @@ fabriquée pour remplir les trous.
 - Premier outil avancé activé : Cassure permet de cliquer sur un lien pour lui
   ajouter un point de passage, affiché sur le canevas, sauvegardé dans `.lrea`
   et correctement décalé lors d’une duplication.
+- Les points de cassure sont déplaçables par glisser-déposer et disposent d’un
+  menu contextuel de suppression ; chaque modification participe à
+  l’historique Annuler/Rétablir.
 - Ajout d’un aperçu dynamique pendant la création des liens : extrémité de
   départ encadrée, liaison suivant la souris et cible compatible mise en
   évidence.

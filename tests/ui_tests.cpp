@@ -209,13 +209,37 @@ void UiTests::linksHaveComfortableHitAreaAndDisplayRole()
     QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier,
                       view->mapFromScene(center + offset));
     QCoreApplication::processEvents();
-    bool breakpointVisible = false;
+    QGraphicsItem *breakpointHandle = nullptr;
     for (auto *item : view->scene()->items()) {
-        if (item->data(0).toString() != QStringLiteral("link")) continue;
-        for (auto *child : item->childItems())
-            breakpointVisible = breakpointVisible || qgraphicsitem_cast<QGraphicsEllipseItem *>(child);
+        if (item->data(0).toString() == QStringLiteral("breakpoint")) breakpointHandle = item;
     }
-    QVERIFY(breakpointVisible);
+    QVERIFY(breakpointHandle);
+    const QPointF movedPosition = breakpointHandle->scenePos() + QPointF(0, 35);
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                      view->mapFromScene(breakpointHandle->scenePos()));
+    QTest::mouseMove(view->viewport(), view->mapFromScene(movedPosition), 50);
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier,
+                        view->mapFromScene(movedPosition));
+    QCoreApplication::processEvents();
+    breakpointHandle = nullptr;
+    for (auto *item : view->scene()->items())
+        if (item->data(0).toString() == QStringLiteral("breakpoint")) breakpointHandle = item;
+    QVERIFY(breakpointHandle);
+    QVERIFY(QLineF(breakpointHandle->scenePos(), movedPosition).length() < 2.0);
+
+    QVERIFY(QMetaObject::invokeMethod(&window, "removeBreakpoint", Qt::DirectConnection,
+                                      Q_ARG(QString, QStringLiteral("lien")), Q_ARG(int, 0)));
+    bool breakpointRemaining = false;
+    for (auto *item : view->scene()->items())
+        breakpointRemaining = breakpointRemaining || item->data(0).toString() == QStringLiteral("breakpoint");
+    QVERIFY(!breakpointRemaining);
+
+    QVERIFY(QMetaObject::invokeMethod(&window, "undo", Qt::DirectConnection));
+    breakpointHandle = nullptr;
+    for (auto *item : view->scene()->items())
+        if (item->data(0).toString() == QStringLiteral("breakpoint")) breakpointHandle = item;
+    QVERIFY(breakpointHandle);
+    QVERIFY(QLineF(breakpointHandle->scenePos(), movedPosition).length() < 2.0);
     const QString screenshotPath = qEnvironmentVariable("OPENLOOPING_BREAK_SCREENSHOT");
     if (!screenshotPath.isEmpty()) QVERIFY(window.grab().save(screenshotPath));
 }

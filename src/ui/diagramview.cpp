@@ -167,6 +167,14 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
 {
     QGraphicsView::mouseReleaseEvent(event);
     for (auto *item : scene()->selectedItems()) {
+        if (item->data(0).toString() != QStringLiteral("breakpoint")) continue;
+        const QString linkId = item->data(1).toString();
+        const int index = item->data(2).toInt();
+        const QPointF position = item->scenePos();
+        emit breakpointMoved(linkId, index, position);
+        return;
+    }
+    for (auto *item : scene()->selectedItems()) {
         while (item->parentItem()) item = item->parentItem();
         const QString kind = item->data(0).toString();
         if (kind == "entity" || kind == "association" || kind == "inheritance" || kind == "rule")
@@ -177,6 +185,10 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
 void DiagramView::contextMenuEvent(QContextMenuEvent *event)
 {
     if (auto *item = itemAt(event->pos())) {
+        if (item->data(0).toString() == QStringLiteral("breakpoint")) {
+            emit breakpointContextRequested(item->data(1).toString(), item->data(2).toInt(), event->globalPos());
+            return;
+        }
         while (item->parentItem()) item = item->parentItem();
         emit contextRequested(item->data(0).toString(), item->data(1).toString(), event->globalPos());
         return;

@@ -459,7 +459,9 @@ void MainWindow::setupUi()
     connect(m_view, &DiagramView::objectDoubleClicked, this, &MainWindow::editObject);
     connect(m_view, &DiagramView::emptyClicked, this, &MainWindow::placeObject);
     connect(m_view, &DiagramView::objectMoved, this, &MainWindow::moveObject);
+    connect(m_view, &DiagramView::breakpointMoved, this, &MainWindow::moveBreakpoint);
     connect(m_view, &DiagramView::contextRequested, this, &MainWindow::showObjectMenu);
+    connect(m_view, &DiagramView::breakpointContextRequested, this, &MainWindow::showBreakpointMenu);
     connect(m_view, &DiagramView::repeatToolRequested, this, &MainWindow::repeatLastTool);
     connect(m_view, &DiagramView::deleteRequested, this, &MainWindow::deleteSelected);
     connect(m_view, &DiagramView::cancelRequested, this, &MainWindow::cancelCurrentTool);
@@ -686,6 +688,42 @@ void MainWindow::moveObject(const QString &kind, const QString &id, const QPoint
     else if (kind == "inheritance") { if (auto *object = m_model.inheritance(id)) object->position = position; }
     else if (kind == "rule") { if (auto *object = m_model.rule(id)) object->position = position; }
     setDirty(); rebuildScene();
+}
+
+void MainWindow::moveBreakpoint(const QString &linkId, int index, const QPointF &position)
+{
+    auto *link = m_model.link(linkId);
+    if (!link || index < 0 || index >= link->breakpoints.size()) return;
+    if (QLineF(link->breakpoints[index], position).length() < 0.5) return;
+    checkpoint();
+    link = m_model.link(linkId);
+    if (!link) return;
+    link->breakpoints[index] = position;
+    setDirty();
+    rebuildScene();
+    statusBar()->showMessage(tr("Cassure déplacée"), 1800);
+}
+
+void MainWindow::removeBreakpoint(const QString &linkId, int index)
+{
+    auto *link = m_model.link(linkId);
+    if (!link || index < 0 || index >= link->breakpoints.size()) return;
+    checkpoint();
+    link = m_model.link(linkId);
+    if (!link) return;
+    link->breakpoints.removeAt(index);
+    setDirty();
+    rebuildScene();
+    statusBar()->showMessage(tr("Cassure supprimée"), 1800);
+}
+
+void MainWindow::showBreakpointMenu(const QString &linkId, int index, const QPoint &globalPosition)
+{
+    auto *link = m_model.link(linkId);
+    if (!link || index < 0 || index >= link->breakpoints.size()) return;
+    QMenu menu(this);
+    menu.addAction(tr("Supprimer la cassure"), this, [this, linkId, index] { removeBreakpoint(linkId, index); });
+    menu.exec(globalPosition);
 }
 
 void MainWindow::showObjectMenu(const QString &kind, const QString &id, const QPoint &globalPosition)
@@ -928,6 +966,8 @@ void MainWindow::objectClickedAt(const QString &kind, const QString &id, const Q
     }
 
     checkpoint();
+    link = m_model.link(id);
+    if (!link) return;
     link->breakpoints.insert(insertAt, position);
     m_breakMode = false;
     m_view->viewport()->setCursor(Qt::ArrowCursor);
@@ -1075,9 +1115,14 @@ void MainWindow::rebuildScene()
         auto *line = new InteractiveLinkItem(linkPath, linkPen);
         m_scene->addItem(line);
         line->setData(0, "link"); line->setData(1, l.id); line->setZValue(-1);
-        for (const auto &point : l.breakpoints) {
+        for (qsizetype breakpointIndex = 0; breakpointIndex < l.breakpoints.size(); ++breakpointIndex) {
+            const auto point = l.breakpoints[breakpointIndex];
             auto *handle = new QGraphicsEllipseItem(QRectF(-4, -4, 8, 8), line);
             handle->setPos(point); handle->setPen(QPen(QColor("#64748b"), 1.2)); handle->setBrush(Qt::white);
+            handle->setData(0, "breakpoint"); handle->setData(1, l.id); handle->setData(2, breakpointIndex);
+            handle->setFlags(QGraphicsItem::ItemIsMovable | QGraphicsItem::ItemIsSelectable);
+            handle->setCursor(Qt::SizeAllCursor);
+            handle->setToolTip(tr("Glisser pour déplacer · clic droit pour supprimer"));
             handle->setZValue(3);
         }
         const QPointF direction = firstSegment.p2() - firstSegment.p1();
