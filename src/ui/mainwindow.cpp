@@ -614,6 +614,7 @@ void MainWindow::objectClicked(const QString &kind, const QString &id)
     if (m_linkStartId.isEmpty()) {
         m_linkStartKind = kind;
         m_linkStartId = id;
+        m_view->setConnectionStart(kind, id);
         if (kind == "entity")
             statusBar()->showMessage(tr("Entité sélectionnée : cliquez une association ou un héritage"));
         else
@@ -624,6 +625,7 @@ void MainWindow::objectClicked(const QString &kind, const QString &id)
     if (m_linkStartKind == kind && m_linkStartId == id) {
         m_linkStartKind.clear();
         m_linkStartId.clear();
+        m_view->clearConnectionStart();
         statusBar()->showMessage(tr("Sélection annulée : choisissez une première extrémité"));
         return;
     }
@@ -646,6 +648,7 @@ void MainWindow::objectClicked(const QString &kind, const QString &id)
     } else {
         m_linkStartKind = kind;
         m_linkStartId = id;
+        m_view->setConnectionStart(kind, id);
         statusBar()->showMessage(kind == "entity"
             ? tr("Entité sélectionnée : cliquez une association ou un héritage")
             : tr("Extrémité sélectionnée : cliquez une entité"));
@@ -656,17 +659,19 @@ void MainWindow::objectClicked(const QString &kind, const QString &id)
         for (const auto &link : m_model.links)
             if (link.entityId == entityId && link.associationId == associationId) {
                 m_linkStartKind.clear(); m_linkStartId.clear();
+                m_view->clearConnectionStart();
                 statusBar()->showMessage(tr("Ce lien existe déjà — choisissez une autre extrémité"), 3000);
                 return;
             }
         checkpoint();
         m_model.links.append({newId(), entityId, associationId, Cardinality::ZeroMany, {}, {}, {}, 0});
-        m_linkStartKind.clear(); m_linkStartId.clear(); setDirty(); rebuildScene();
+        m_linkStartKind.clear(); m_linkStartId.clear(); m_view->clearConnectionStart(); setDirty(); rebuildScene();
         statusBar()->showMessage(tr("Lien 0,n créé — cliquez pour en ajouter un autre"), 3000);
     } else if (!inheritanceId.isEmpty()) {
         for (const auto &link : m_model.inheritanceLinks)
             if (link.entityId == entityId && link.inheritanceId == inheritanceId) {
                 m_linkStartKind.clear(); m_linkStartId.clear();
+                m_view->clearConnectionStart();
                 statusBar()->showMessage(tr("Ce lien d’héritage existe déjà — choisissez une autre extrémité"), 3000);
                 return;
             }
@@ -675,7 +680,7 @@ void MainWindow::objectClicked(const QString &kind, const QString &id)
             if (link.inheritanceId == inheritanceId && link.supertype) hasSupertype = true;
         checkpoint();
         m_model.inheritanceLinks.append({newId(), entityId, inheritanceId, !hasSupertype});
-        m_linkStartKind.clear(); m_linkStartId.clear(); setDirty(); rebuildScene();
+        m_linkStartKind.clear(); m_linkStartId.clear(); m_view->clearConnectionStart(); setDirty(); rebuildScene();
         statusBar()->showMessage(hasSupertype
             ? tr("Lien de sous-type créé — cliquez pour en ajouter un autre")
             : tr("Lien de surtype créé — cliquez pour en ajouter un autre"), 3000);

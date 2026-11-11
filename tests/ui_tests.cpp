@@ -16,6 +16,7 @@ class UiTests : public QObject {
 private slots:
     void identifierChecksAndLocksNotNull();
     void linkToolAcceptsBothOrdersAndStaysActive();
+    void linkToolShowsAndClearsConnectionPreview();
 };
 
 void UiTests::identifierChecksAndLocksNotNull()
@@ -100,6 +101,39 @@ void UiTests::linkToolAcceptsBothOrdersAndStaysActive()
 
     QTest::keyClick(view, Qt::Key_Escape);
     QCOMPARE(view->viewport()->cursor().shape(), Qt::ArrowCursor);
+}
+
+void UiTests::linkToolShowsAndClearsConnectionPreview()
+{
+    QGraphicsScene scene;
+    DiagramView view;
+    view.setScene(&scene);
+    auto *entity = scene.addRect(QRectF(20, 20, 120, 70));
+    entity->setData(0, QStringLiteral("entity"));
+    entity->setData(1, QStringLiteral("client"));
+
+    view.setConnectionMode(true);
+    view.setConnectionStart(QStringLiteral("entity"), QStringLiteral("client"));
+    view.resize(480, 320);
+    view.show();
+    QCoreApplication::processEvents();
+
+    QImage preview(view.viewport()->size(), QImage::Format_ARGB32_Premultiplied);
+    preview.fill(Qt::transparent);
+    view.viewport()->render(&preview);
+    bool hasBluePreview = false;
+    for (int y = 0; y < preview.height() && !hasBluePreview; ++y)
+        for (int x = 0; x < preview.width(); ++x) {
+            const QColor color = preview.pixelColor(x, y);
+            if (color.blue() > 170 && color.blue() > color.red() * 1.4) {
+                hasBluePreview = true;
+                break;
+            }
+        }
+    QVERIFY(hasBluePreview);
+
+    view.setConnectionMode(false);
+    QCOMPARE(view.viewport()->cursor().shape(), Qt::ArrowCursor);
 }
 
 QTEST_MAIN(UiTests)

@@ -7,6 +7,8 @@ class DiagramView : public QGraphicsView {
 public:
     explicit DiagramView(QWidget *parent = nullptr);
     void setConnectionMode(bool active);
+    void setConnectionStart(const QString &kind, const QString &id);
+    void clearConnectionStart();
 
 signals:
     void objectClicked(const QString &kind, const QString &id);
@@ -21,7 +23,9 @@ signals:
 
 protected:
     void drawBackground(QPainter *painter, const QRectF &rect) override;
+    void drawForeground(QPainter *painter, const QRectF &rect) override;
     void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
@@ -29,5 +33,12 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
 
 private:
+    QGraphicsItem *connectionItem(const QString &kind, const QString &id) const;
+    QGraphicsItem *compatibleTargetAt(const QPoint &viewportPosition) const;
+
     bool m_connectionMode = false;
+    QString m_connectionStartKind;
+    QString m_connectionStartId;
+    QPointF m_connectionCursor;
+    bool m_hasConnectionCursor = false;
 };

@@ -7,6 +7,9 @@ fabriquée pour remplir les trous.
 
 ## Non publié
 
+- Ajout d’un aperçu dynamique pendant la création des liens : extrémité de
+  départ encadrée, liaison suivant la souris et cible compatible mise en
+  évidence.
 - Correction du mode de création des liens sur le canevas.
 - Sélection des extrémités dans les deux ordres : entité–association ou
   association–entité, ainsi qu'entité–héritage dans les deux sens.
