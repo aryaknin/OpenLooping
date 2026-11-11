@@ -5,6 +5,7 @@
 #include "core/persistence.h"
 
 #include <QCheckBox>
+#include <QContextMenuEvent>
 #include <QFrame>
 #include <QGraphicsItem>
 #include <QGraphicsScene>
@@ -105,6 +106,22 @@ void UiTests::linkToolAcceptsBothOrdersAndStaysActive()
 
     QTest::keyClick(view, Qt::Key_Escape);
     QCOMPARE(view->viewport()->cursor().shape(), Qt::ArrowCursor);
+
+    QPoint emptyPosition;
+    bool emptyFound = false;
+    for (int y = 10; y < view->viewport()->height() && !emptyFound; y += 20)
+        for (int x = 10; x < view->viewport()->width(); x += 20)
+            if (!view->itemAt(QPoint(x, y))) {
+                emptyPosition = QPoint(x, y);
+                emptyFound = true;
+                break;
+            }
+    QVERIFY(emptyFound);
+    QContextMenuEvent repeatEvent(QContextMenuEvent::Mouse, emptyPosition,
+                                  view->viewport()->mapToGlobal(emptyPosition));
+    QApplication::sendEvent(view->viewport(), &repeatEvent);
+    QCoreApplication::processEvents();
+    QCOMPARE(view->viewport()->cursor().shape(), Qt::CrossCursor);
 }
 
 void UiTests::linkToolShowsAndClearsConnectionPreview()

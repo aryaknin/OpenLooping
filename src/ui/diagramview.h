@@ -15,6 +15,7 @@ signals:
     void objectDoubleClicked(const QString &kind, const QString &id);
     void objectMoved(const QString &kind, const QString &id, const QPointF &position);
     void contextRequested(const QString &kind, const QString &id, const QPoint &globalPosition);
+    void repeatToolRequested();
     void deleteRequested();
     void cancelRequested();
     void emptyClicked(const QPointF &position);

@@ -37,6 +37,7 @@ private slots:
     void addRule();
     void startLink();
     void cancelCurrentTool();
+    void repeatLastTool();
     void objectClicked(const QString &kind, const QString &id);
     void editObject(const QString &kind, const QString &id);
     void placeObject(const QPointF &position);
@@ -70,6 +71,7 @@ private:
     QString m_linkStartKind;
     QString m_linkStartId;
     QString m_pendingPlacement;
+    QString m_lastTool;
     QVector<looping::Model> m_undo;
     QVector<looping::Model> m_redo;
     looping::Model m_clipboard;

@@ -177,7 +177,8 @@ void DiagramView::contextMenuEvent(QContextMenuEvent *event)
         emit contextRequested(item->data(0).toString(), item->data(1).toString(), event->globalPos());
         return;
     }
-    QGraphicsView::contextMenuEvent(event);
+    emit repeatToolRequested();
+    event->accept();
 }
 
 void DiagramView::keyPressEvent(QKeyEvent *event)

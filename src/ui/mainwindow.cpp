@@ -451,6 +451,7 @@ void MainWindow::setupUi()
     connect(m_view, &DiagramView::emptyClicked, this, &MainWindow::placeObject);
     connect(m_view, &DiagramView::objectMoved, this, &MainWindow::moveObject);
     connect(m_view, &DiagramView::contextRequested, this, &MainWindow::showObjectMenu);
+    connect(m_view, &DiagramView::repeatToolRequested, this, &MainWindow::repeatLastTool);
     connect(m_view, &DiagramView::deleteRequested, this, &MainWindow::deleteSelected);
     connect(m_view, &DiagramView::cancelRequested, this, &MainWindow::cancelCurrentTool);
 }
@@ -464,6 +465,15 @@ void MainWindow::cancelCurrentTool()
     m_view->setConnectionMode(false);
     if (m_modeButtons && m_modeButtons->button(0)) m_modeButtons->button(0)->setChecked(true);
     statusBar()->clearMessage();
+}
+
+void MainWindow::repeatLastTool()
+{
+    if (m_lastTool == "link") startLink();
+    else if (m_lastTool == "entity") addEntity();
+    else if (m_lastTool == "association") addAssociation();
+    else if (m_lastTool == "inheritance") addInheritance();
+    else if (m_lastTool == "rule") addRule();
 }
 
 void MainWindow::newModel()
@@ -547,6 +557,7 @@ void MainWindow::exportMld()
 
 void MainWindow::addEntity()
 {
+    m_lastTool = "entity";
     if (m_modeButtons && m_modeButtons->button(1)) m_modeButtons->button(1)->setChecked(true);
     m_pendingPlacement = "entity"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
@@ -591,6 +602,7 @@ void MainWindow::placeObject(const QPointF &position)
 
 void MainWindow::addAssociation()
 {
+    m_lastTool = "association";
     if (m_modeButtons && m_modeButtons->button(2)) m_modeButtons->button(2)->setChecked(true);
     m_pendingPlacement = "association"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
@@ -599,6 +611,7 @@ void MainWindow::addAssociation()
 
 void MainWindow::addInheritance()
 {
+    m_lastTool = "inheritance";
     if (m_modeButtons && m_modeButtons->button(3)) m_modeButtons->button(3)->setChecked(true);
     m_pendingPlacement = "inheritance"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
@@ -607,6 +620,7 @@ void MainWindow::addInheritance()
 
 void MainWindow::addRule()
 {
+    m_lastTool = "rule";
     if (m_modeButtons && m_modeButtons->button(4)) m_modeButtons->button(4)->setChecked(true);
     m_pendingPlacement = "rule"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
@@ -615,6 +629,7 @@ void MainWindow::addRule()
 
 void MainWindow::startLink()
 {
+    m_lastTool = "link";
     if (m_modeButtons && m_modeButtons->button(5)) m_modeButtons->button(5)->setChecked(true);
     m_pendingPlacement.clear();
     m_linkMode = true;

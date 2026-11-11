@@ -14,6 +14,8 @@ fabriquée pour remplir les trous.
   pendant son utilisation et Sélection reprend l’état actif à l’annulation.
 - Réintégration visible des outils MCD avancés et des représentations prévues
   dans un menu dédié, avec indication honnête des fonctions encore à venir.
+- Raccourci de répétition à la Looping : un clic droit sur le canevas vide
+  réactive le dernier outil de construction, notamment Lien après Sélection.
 - Ajout d’un aperçu dynamique pendant la création des liens : extrémité de
   départ encadrée, liaison suivant la souris et cible compatible mise en
   évidence.
