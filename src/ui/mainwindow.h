@@ -11,6 +11,7 @@ class QLabel;
 class QSlider;
 class QDockWidget;
 class QCloseEvent;
+class QButtonGroup;
 class QMdiArea;
 class QMdiSubWindow;
 
@@ -83,4 +84,5 @@ private:
     QDockWidget *m_sqlDock;
     QLabel *m_zoomLabel;
     QSlider *m_zoomSlider;
+    QButtonGroup *m_modeButtons;
 };

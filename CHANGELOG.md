@@ -10,6 +10,10 @@ fabriquée pour remplir les trous.
 - Refonte complète de la barre supérieure : accès direct aux outils MCD,
   pictogrammes vectoriels cohérents, groupes allégés, commandes de document
   compactes, zoom modernisé et meilleure hiérarchie visuelle.
+- Modes de construction réellement exclusifs : le bouton Lien n’est bleu que
+  pendant son utilisation et Sélection reprend l’état actif à l’annulation.
+- Réintégration visible des outils MCD avancés et des représentations prévues
+  dans un menu dédié, avec indication honnête des fonctions encore à venir.
 - Ajout d’un aperçu dynamique pendant la création des liens : extrémité de
   départ encadrée, liaison suivant la souris et cible compatible mise en
   évidence.

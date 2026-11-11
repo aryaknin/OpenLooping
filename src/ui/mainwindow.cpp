@@ -308,11 +308,12 @@ void MainWindow::setupUi()
     auto *openButton = headerAction(domainIcon("open", QColor("#475569")), tr("Ouvrir (Ctrl+O)"));
     auto *saveButton = headerAction(domainIcon("save", QColor("#475569")), tr("Enregistrer (Ctrl+S)"));
     auto *edition = new QToolButton(topBar); edition->setObjectName("fileButton"); edition->setText(tr("Édition  ▾")); edition->setPopupMode(QToolButton::InstantPopup); edition->setCursor(Qt::PointingHandCursor);
+    auto *advancedTools = new QToolButton(topBar); advancedTools->setObjectName("fileButton"); advancedTools->setText(tr("Outils avancés  ▾")); advancedTools->setPopupMode(QToolButton::InstantPopup); advancedTools->setCursor(Qt::PointingHandCursor);
     auto *windows = new QToolButton(topBar); windows->setObjectName("fileButton"); windows->setText(tr("Fenêtres  ▾")); windows->setPopupMode(QToolButton::InstantPopup); windows->setCursor(Qt::PointingHandCursor);
     auto *fileButton = new QToolButton(topBar); fileButton->setObjectName("fileButton"); fileButton->setText(tr("Fichier  ▾")); fileButton->setPopupMode(QToolButton::InstantPopup); fileButton->setCursor(Qt::PointingHandCursor);
     header->addWidget(brandMark); header->addWidget(brandName); header->addSpacing(8); header->addWidget(workspace); header->addStretch();
     header->addWidget(newButton); header->addWidget(openButton); header->addWidget(saveButton); header->addSpacing(8);
-    header->addWidget(edition); header->addWidget(windows); header->addWidget(fileButton);
+    header->addWidget(edition); header->addWidget(advancedTools); header->addWidget(windows); header->addWidget(fileButton);
     barLayout->addLayout(header);
 
     auto *groups = new QHBoxLayout;
@@ -325,7 +326,15 @@ void MainWindow::setupUi()
     auto *associationButton = toolButton(domainIcon("association", QColor("#0891b2")), tr("Association"), topBar);
     auto *inheritanceButton = toolButton(domainIcon("inheritance", QColor("#7c3aed")), tr("Héritage"), topBar);
     auto *ruleButton = toolButton(domainIcon("rule", QColor("#b7791f")), tr("Règle"), topBar);
-    auto *linkButton = toolButton(domainIcon("link", QColor("#2563eb")), tr("Lien"), topBar, QStringLiteral("primary"));
+    auto *linkButton = toolButton(domainIcon("link", QColor("#2563eb")), tr("Lien"), topBar);
+    m_modeButtons = new QButtonGroup(this);
+    m_modeButtons->setExclusive(true);
+    const QList<QToolButton *> modeButtons{selection, entityButton, associationButton, inheritanceButton, ruleButton, linkButton};
+    for (int index = 0; index < modeButtons.size(); ++index) {
+        modeButtons[index]->setCheckable(true);
+        m_modeButtons->addButton(modeButtons[index], index);
+    }
+    selection->setChecked(true);
     modelTools->addWidget(selection); modelTools->addWidget(entityButton); modelTools->addWidget(associationButton);
     modelTools->addWidget(inheritanceButton); modelTools->addWidget(ruleButton); modelTools->addWidget(linkButton);
     groups->addWidget(toolbarGroup(tr("CONSTRUCTION"), modelTools, topBar));
@@ -372,6 +381,24 @@ void MainWindow::setupUi()
     fileMenu->addSeparator();
     fileMenu->addAction(tr("Quitter"), this, &QWidget::close);
     fileButton->setMenu(fileMenu);
+
+    auto *advancedMenu = new QMenu(this);
+    advancedMenu->addSection(tr("Objets MCD"));
+    auto addPlannedTool = [advancedMenu](const QString &name) {
+        auto *action = advancedMenu->addAction(name + QObject::tr(" — à venir"));
+        action->setEnabled(false);
+    };
+    addPlannedTool(tr("Contrainte inter-associations"));
+    addPlannedTool(tr("CIF"));
+    addPlannedTool(tr("Cassure de lien"));
+    addPlannedTool(tr("Sous-modèle"));
+    addPlannedTool(tr("Illustration"));
+    advancedMenu->addSeparator();
+    advancedMenu->addSection(tr("Représentations"));
+    auto *eaView = advancedMenu->addAction(tr("MCD Entité / Association")); eaView->setCheckable(true); eaView->setChecked(true);
+    addPlannedTool(tr("Diagramme UML"));
+    addPlannedTool(tr("Modèle organisationnel de flux"));
+    advancedTools->setMenu(advancedMenu);
     connect(newButton, &QToolButton::clicked, newAction, &QAction::trigger);
     connect(openButton, &QToolButton::clicked, openAction, &QAction::trigger);
     connect(saveButton, &QToolButton::clicked, saveAction, &QAction::trigger);
@@ -435,6 +462,7 @@ void MainWindow::cancelCurrentTool()
     m_linkStartKind.clear();
     m_linkStartId.clear();
     m_view->setConnectionMode(false);
+    if (m_modeButtons && m_modeButtons->button(0)) m_modeButtons->button(0)->setChecked(true);
     statusBar()->clearMessage();
 }
 
@@ -444,6 +472,7 @@ void MainWindow::newModel()
     m_model = {}; m_path.clear(); m_dirty = false; m_linkMode = false;
     m_linkStartKind.clear(); m_linkStartId.clear(); m_pendingPlacement.clear();
     m_view->setConnectionMode(false);
+    if (m_modeButtons && m_modeButtons->button(0)) m_modeButtons->button(0)->setChecked(true);
     m_undo.clear(); m_redo.clear(); m_documentWindow->showMaximized(); rebuildScene();
 }
 
@@ -473,6 +502,7 @@ bool MainWindow::loadModel(const QString &path, bool showWarnings)
     m_dirty = native; m_undo.clear(); m_redo.clear();
     m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear(); m_pendingPlacement.clear();
     m_view->setConnectionMode(false);
+    if (m_modeButtons && m_modeButtons->button(0)) m_modeButtons->button(0)->setChecked(true);
     m_documentWindow->showMaximized(); rebuildScene();
     QTimer::singleShot(0, this, &MainWindow::fitModelToView);
     if (showWarnings && !warnings.isEmpty()) QMessageBox::information(this, tr("Import Looping"), warnings.join("\n\n"));
@@ -517,6 +547,7 @@ void MainWindow::exportMld()
 
 void MainWindow::addEntity()
 {
+    if (m_modeButtons && m_modeButtons->button(1)) m_modeButtons->button(1)->setChecked(true);
     m_pendingPlacement = "entity"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
     statusBar()->showMessage(tr("Cliquez sur le canevas pour placer l’entité"));
@@ -527,6 +558,7 @@ void MainWindow::placeObject(const QPointF &position)
     if (m_pendingPlacement.isEmpty()) return;
     const QString kind = m_pendingPlacement;
     m_pendingPlacement.clear();
+    if (m_modeButtons && m_modeButtons->button(0)) m_modeButtons->button(0)->setChecked(true);
     if (kind == "entity") {
     ObjectDialog dialog(tr("Nouvelle entité"), this);
     const QString name = tr("Entité %1").arg(m_model.entities.size() + 1);
@@ -559,6 +591,7 @@ void MainWindow::placeObject(const QPointF &position)
 
 void MainWindow::addAssociation()
 {
+    if (m_modeButtons && m_modeButtons->button(2)) m_modeButtons->button(2)->setChecked(true);
     m_pendingPlacement = "association"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
     statusBar()->showMessage(tr("Cliquez sur le canevas pour placer l’association"));
@@ -566,6 +599,7 @@ void MainWindow::addAssociation()
 
 void MainWindow::addInheritance()
 {
+    if (m_modeButtons && m_modeButtons->button(3)) m_modeButtons->button(3)->setChecked(true);
     m_pendingPlacement = "inheritance"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
     statusBar()->showMessage(tr("Cliquez sur le canevas pour placer l’héritage"));
@@ -573,6 +607,7 @@ void MainWindow::addInheritance()
 
 void MainWindow::addRule()
 {
+    if (m_modeButtons && m_modeButtons->button(4)) m_modeButtons->button(4)->setChecked(true);
     m_pendingPlacement = "rule"; m_linkMode = false; m_linkStartKind.clear(); m_linkStartId.clear();
     m_view->setConnectionMode(false);
     statusBar()->showMessage(tr("Cliquez sur le canevas pour placer la règle"));
@@ -580,6 +615,7 @@ void MainWindow::addRule()
 
 void MainWindow::startLink()
 {
+    if (m_modeButtons && m_modeButtons->button(5)) m_modeButtons->button(5)->setChecked(true);
     m_pendingPlacement.clear();
     m_linkMode = true;
     m_linkStartKind.clear();

@@ -216,10 +216,28 @@ void UiTests::modernToolbarExposesPrimaryActionsAndFits()
     };
     auto *view = window.findChild<DiagramView *>();
     QVERIFY(view);
-    QTest::mouseClick(buttonNamed(QStringLiteral("Lien")), Qt::LeftButton);
+    auto *linkButton = buttonNamed(QStringLiteral("Lien"));
+    auto *selectionButton = buttonNamed(QStringLiteral("Sélection"));
+    QVERIFY(linkButton); QVERIFY(selectionButton);
+    QVERIFY(selectionButton->isChecked());
+    QVERIFY(!linkButton->isChecked());
+    QTest::mouseClick(linkButton, Qt::LeftButton);
     QCOMPARE(view->viewport()->cursor().shape(), Qt::CrossCursor);
-    QTest::mouseClick(buttonNamed(QStringLiteral("Sélection")), Qt::LeftButton);
+    QVERIFY(linkButton->isChecked());
+    QVERIFY(!selectionButton->isChecked());
+    QTest::mouseClick(selectionButton, Qt::LeftButton);
     QCOMPARE(view->viewport()->cursor().shape(), Qt::ArrowCursor);
+    QVERIFY(selectionButton->isChecked());
+    QVERIFY(!linkButton->isChecked());
+    QTest::mouseClick(linkButton, Qt::LeftButton);
+    QTest::keyClick(view, Qt::Key_Escape);
+    QVERIFY(selectionButton->isChecked());
+    QVERIFY(!linkButton->isChecked());
+
+    bool advancedMenuFound = false;
+    for (auto *button : buttons)
+        advancedMenuFound = advancedMenuFound || button->text().startsWith(QStringLiteral("Outils avancés"));
+    QVERIFY(advancedMenuFound);
 
     const QString screenshotPath = qEnvironmentVariable("OPENLOOPING_UI_SCREENSHOT");
     if (!screenshotPath.isEmpty()) QVERIFY(window.grab().save(screenshotPath));
